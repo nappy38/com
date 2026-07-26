@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Appleライクなミニマル配色: 白ベース + 単色アクセント -->
+    <color name="background_white">#FFFFFFFF</color>
+    <color name="surface_white">#FFFFFFFF</color>
+    <color name="ink_black">#FF1C1C1E</color>
+    <color name="ink_gray">#FF8E8E93</color>
+    <color name="divider_gray">#FFE5E5EA</color>
+    <color name="accent_blue">#FF0A84FF</color>
+    <color name="danger_red">#FFFF3B30</color>
+    <color name="success_green">#FF34C759</color>
+
+    <color name="ic_launcher_background">#FFFFFFFF</color>
+</resources>
