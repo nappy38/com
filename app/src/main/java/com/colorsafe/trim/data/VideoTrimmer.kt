@@ -101,13 +101,17 @@ class VideoTrimmer(private val context: Context) {
         output: File
     ): List<String> = buildList {
         val isHighBitDepth = sourceInfo.pixFmt?.contains("10") == true || sourceInfo.pixFmt?.contains("12") == true
+        val isHevc = isHighBitDepth || sourceInfo.codecName == "hevc"
+        // このFFmpegKit後継フォークはGPLライセンスのlibx264/libx265を同梱していないビルドがあり、
+        // その場合 "-preset"/"-crf" が「Unrecognized option」で失敗する。
+        // ライセンス不問で同梱されているAndroid端末のハードウェアエンコーダ(MediaCodec)を使う。
         val videoEncoder = when {
             sourceInfo.codecName == "vp9" -> "libvpx-vp9"
             sourceInfo.codecName == "av1" -> "libsvtav1"
-            isHighBitDepth -> "libx265"
-            sourceInfo.codecName == "hevc" -> "libx265"
-            else -> "libx264"
+            isHevc -> "hevc_mediacodec"
+            else -> "h264_mediacodec"
         }
+        val usesMediaCodec = videoEncoder.endsWith("_mediacodec")
 
         add("-y")
         add("-ss"); add(start.toString())
@@ -115,8 +119,13 @@ class VideoTrimmer(private val context: Context) {
         add("-t"); add(duration.toString())
         add("-map"); add("0")
         add("-c:v"); add(videoEncoder)
-        add("-preset"); add("medium")
-        add("-crf"); add("18")
+        if (usesMediaCodec) {
+            val bitrate = sourceInfo.bitrate?.takeIf { it > 0 } ?: estimateBitrate(sourceInfo)
+            add("-b:v"); add(bitrate.toString())
+        } else {
+            add("-preset"); add("medium")
+            add("-crf"); add("18")
+        }
 
         // ffprobeが色情報を取得できない(unspecified)動画も多いため、
         // その場合は民生カメラ映像で最も一般的なRec.709/limited rangeを既定値として明示する。
@@ -128,7 +137,7 @@ class VideoTrimmer(private val context: Context) {
         add("-color_trc"); add(sourceInfo.colorTransfer ?: "bt709")
         add("-color_range"); add(sourceInfo.colorRange ?: "tv")
 
-        if (videoEncoder == "libx265") {
+        if (videoEncoder == "libx265" || videoEncoder == "hevc_mediacodec") {
             // QuickTime/ギャラリー互換性向上のためのタグ付け
             add("-tag:v"); add("hvc1")
         }
@@ -151,5 +160,14 @@ class VideoTrimmer(private val context: Context) {
     private fun estimatedOutputBytes(sourceInfo: VideoColorInfo, durationSeconds: Double): Long {
         val bitrate = sourceInfo.bitrate ?: (8_000_000L)
         return ((bitrate / 8.0) * durationSeconds).toLong().coerceAtLeast(10L * 1024 * 1024)
+    }
+
+    /** 元動画のビットレートが取得できない場合の目安値(解像度とフレームレートから概算) */
+    private fun estimateBitrate(info: VideoColorInfo): Long {
+        val pixels = (info.width.toLong() * info.height.toLong()).coerceAtLeast(1)
+        val fps = info.frameRate?.takeIf { it > 0 } ?: 30.0
+        val bitsPerPixelPerFrame = 0.1
+        val bps = (pixels * fps * bitsPerPixelPerFrame).toLong()
+        return bps.coerceIn(4_000_000L, 50_000_000L)
     }
 }
