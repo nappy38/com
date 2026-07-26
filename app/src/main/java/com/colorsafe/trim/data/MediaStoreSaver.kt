@@ -21,7 +21,10 @@ class MediaStoreSaver(private val context: Context) {
             val values = ContentValues().apply {
                 put(MediaStore.Video.Media.DISPLAY_NAME, displayName)
                 put(MediaStore.Video.Media.MIME_TYPE, mimeType)
-                put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + "/ColorSafeTrim")
+                // Movies/配下だと一部端末のギャラリーアプリがHDRの高画質再生パスを
+                // 適用せず暗く見えることがあるため、カメラ撮影動画と同じDCIM/Cameraへ保存し、
+                // 端末側から「カメラ由来の動画」として同じ扱いを受けやすくする。
+                put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_DCIM + "/Camera")
                 put(MediaStore.Video.Media.IS_PENDING, 1)
             }
 
