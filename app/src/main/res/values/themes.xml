@@ -5,5 +5,7 @@
         <item name="android:navigationBarColor">@color/background_white</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowBackground">@color/background_white</item>
+        <!-- 一部端末(Xiaomi/MIUI等)のOS強制ダークモードで白背景が暗く変換されるのを防ぐ -->
+        <item name="android:forceDarkAllowed">false</item>
     </style>
 </resources>

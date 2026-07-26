@@ -42,7 +42,8 @@ fun TrimScreen(
     onModeChosen: (TrimMode) -> Unit,
     onDismissModeChoice: () -> Unit,
     onDismissError: () -> Unit,
-    onDismissSuccess: () -> Unit
+    onDismissSuccess: () -> Unit,
+    onDurationReady: (Long) -> Unit = {}
 ) {
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         Column(
@@ -63,7 +64,8 @@ fun TrimScreen(
                         state = state,
                         onStartChanged = onStartChanged,
                         onEndChanged = onEndChanged,
-                        onPickVideoClick = onPickVideoClick
+                        onPickVideoClick = onPickVideoClick,
+                        onDurationReady = onDurationReady
                     )
                 }
             }
@@ -141,21 +143,24 @@ private fun LoadedContent(
     state: TrimUiState,
     onStartChanged: (Float) -> Unit,
     onEndChanged: (Float) -> Unit,
-    onPickVideoClick: () -> Unit
+    onPickVideoClick: () -> Unit,
+    onDurationReady: (Long) -> Unit
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // 縦動画・横動画どちらでも正しい向きで表示されるよう、
+        // 枠の縦横比は固定せず、PlayerViewのFITモードに向きの判断を任せる
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(16f / 9f)
+                .weight(1f)
                 .clip(RoundedCornerShape(16.dp)),
             color = Color.Black
         ) {
             if (state.videoUri != null) {
-                VideoPreview(uri = state.videoUri)
+                VideoPreview(uri = state.videoUri, onDurationReady = onDurationReady)
             }
         }
 

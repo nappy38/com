@@ -126,6 +126,21 @@ class TrimViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = _uiState.value.copy(errorMessage = TrimError.PermissionDenied.message)
     }
 
+    /**
+     * ffprobeで長さが取得できなかった場合のフォールバック。
+     * ExoPlayerが実際に読み込めた長さを正として範囲スライダーに反映する。
+     */
+    fun onPlayerDurationReady(durationMs: Long) {
+        val state = _uiState.value
+        if (state.durationSeconds <= 0.0 && durationMs > 0) {
+            val durationSeconds = durationMs / 1000.0
+            _uiState.value = state.copy(
+                durationSeconds = durationSeconds,
+                endSeconds = durationSeconds
+            )
+        }
+    }
+
     fun dismissSuccess() {
         _uiState.value = _uiState.value.copy(successMessage = null, colorPreservedMessage = null)
     }

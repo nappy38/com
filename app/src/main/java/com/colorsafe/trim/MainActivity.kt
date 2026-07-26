@@ -65,7 +65,8 @@ class MainActivity : ComponentActivity() {
                     onModeChosen = viewModel::onModeChosen,
                     onDismissModeChoice = viewModel::dismissModeChoice,
                     onDismissError = viewModel::dismissError,
-                    onDismissSuccess = viewModel::dismissSuccess
+                    onDismissSuccess = viewModel::dismissSuccess,
+                    onDurationReady = viewModel::onPlayerDurationReady
                 )
             }
         }
