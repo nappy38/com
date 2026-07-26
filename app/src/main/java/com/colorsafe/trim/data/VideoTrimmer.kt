@@ -40,7 +40,7 @@ class VideoTrimmer(private val context: Context) {
         val useFaststart = outputExtension.equals("mp4", true) || outputExtension.equals("mov", true)
 
         val command = when (mode) {
-            TrimMode.FAST_STREAM_COPY -> buildCopyCommand(readPath, startSeconds, duration, useFaststart, outputFile)
+            TrimMode.FAST_STREAM_COPY -> buildCopyCommand(readPath, startSeconds, duration, outputFile)
             TrimMode.ACCURATE_REENCODE -> buildReencodeCommand(
                 readPath, startSeconds, duration, useFaststart, sourceInfo, outputFile
             )
@@ -77,7 +77,6 @@ class VideoTrimmer(private val context: Context) {
         readPath: String,
         start: Double,
         duration: Double,
-        faststart: Boolean,
         output: File
     ): List<String> = buildList {
         add("-y")
@@ -85,10 +84,11 @@ class VideoTrimmer(private val context: Context) {
         add("-i"); add(readPath)
         add("-t"); add(duration.toString())
         add("-map"); add("0")
+        add("-map_metadata"); add("0")
         add("-c"); add("copy")
-        if (faststart) {
-            add("-movflags"); add("+faststart")
-        }
+        // +faststart はmoovアトムの書き換え(実質的な部分リマックス)を伴い、
+        // 一部端末が付与するDolby Vision(dvcC/dvvC)等の高度なHDRコンテナ情報が
+        // 巻き添えで欠落する可能性があるため、コピー経路では付けない。
         add(output.absolutePath)
     }
 

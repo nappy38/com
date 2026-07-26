@@ -14,7 +14,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -28,8 +27,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.colorsafe.trim.model.KeyframeCheckResult
-import com.colorsafe.trim.model.TrimMode
 import kotlin.math.roundToInt
 
 @Composable
@@ -39,8 +36,6 @@ fun TrimScreen(
     onStartChanged: (Float) -> Unit,
     onEndChanged: (Float) -> Unit,
     onSaveClicked: () -> Unit,
-    onModeChosen: (TrimMode) -> Unit,
-    onDismissModeChoice: () -> Unit,
     onDismissError: () -> Unit,
     onDismissSuccess: () -> Unit,
     onDurationReady: (Long) -> Unit = {}
@@ -75,10 +70,6 @@ fun TrimScreen(
                 androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(24.dp))
             }
         }
-    }
-
-    state.pendingModeChoice?.let { result ->
-        ModeChoiceDialog(result = result, onModeChosen = onModeChosen, onDismiss = onDismissModeChoice)
     }
 
     state.errorMessage?.let { message ->
@@ -225,54 +216,6 @@ private fun SaveButton(state: TrimUiState, onSaveClicked: () -> Unit) {
             Text("  " + state.savingStepMessage.ifBlank { "保存中..." })
         } else {
             Text("保存")
-        }
-    }
-}
-
-@Composable
-private fun ModeChoiceDialog(
-    result: KeyframeCheckResult,
-    onModeChosen: (TrimMode) -> Unit,
-    onDismiss: () -> Unit
-) {
-    // Material3 AlertDialogはボタンが横に収まらないとconfirmButtonを上・dismissButtonを下に
-    // 自動で積むため、confirmButton=「2」だと数字の並びと表示順が逆転し誤タップを招く。
-    // ここでは表示順を明示的に「1」→「2」に固定できるDialogを直接使う。
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surface
-        ) {
-            Column(modifier = Modifier.padding(24.dp)) {
-                Text(
-                    text = "正確に切り取るには再エンコードが必要です",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "開始位置がキーフレームと一致していないため、色味を完全維持したまま高速に切り出すと、開始位置が最大${"%.1f".format(kotlin.math.abs(result.differenceSeconds))}秒ずれる場合があります。",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(20.dp))
-                Button(
-                    onClick = { onModeChosen(TrimMode.FAST_STREAM_COPY) },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("1. 高速(色味完全維持)")
-                }
-                androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(8.dp))
-                OutlinedButton(
-                    onClick = { onModeChosen(TrimMode.ACCURATE_REENCODE) },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("2. 正確(再エンコード)")
-                }
-                androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(4.dp))
-                TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                    Text("キャンセル")
-                }
-            }
         }
     }
 }

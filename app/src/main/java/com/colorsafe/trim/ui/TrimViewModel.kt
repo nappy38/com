@@ -98,46 +98,17 @@ class TrimViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * 色味を一切変えないことを最優先するため、常に -c copy (再エンコードなし)のみを使う。
+     * 開始位置がキーフレームでない場合、実際の開始点は最寄りのキーフレームにスナップされる。
+     */
     fun onSaveClicked() {
         val state = _uiState.value
-        val readPath = currentReadPath ?: return
+        if (currentReadPath == null) return
         if (!state.canSave) return
 
-        _uiState.value = state.copy(isSaving = true, savingStepMessage = "キーフレームを確認中...")
-
-        viewModelScope.launch {
-            try {
-                val keyframeResult = probe.findNearestKeyframeAtOrBefore(readPath, state.startSeconds)
-                if (keyframeResult.isOnKeyframe) {
-                    performTrim(TrimMode.FAST_STREAM_COPY)
-                } else {
-                    _uiState.value = _uiState.value.copy(
-                        isSaving = false,
-                        savingStepMessage = "",
-                        pendingModeChoice = keyframeResult
-                    )
-                }
-            } catch (e: TrimException) {
-                _uiState.value = _uiState.value.copy(
-                    isSaving = false,
-                    errorMessage = e.error.message
-                )
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isSaving = false,
-                    errorMessage = TrimError.Unknown(e.message ?: "解析に失敗しました").message
-                )
-            }
-        }
-    }
-
-    fun onModeChosen(mode: TrimMode) {
-        _uiState.value = _uiState.value.copy(pendingModeChoice = null, isSaving = true)
-        viewModelScope.launch { performTrim(mode) }
-    }
-
-    fun dismissModeChoice() {
-        _uiState.value = _uiState.value.copy(pendingModeChoice = null)
+        _uiState.value = state.copy(isSaving = true, savingStepMessage = "")
+        viewModelScope.launch { performTrim(TrimMode.FAST_STREAM_COPY) }
     }
 
     fun dismissError() {

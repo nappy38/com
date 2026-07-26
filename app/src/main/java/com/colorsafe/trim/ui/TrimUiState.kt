@@ -1,7 +1,6 @@
 package com.colorsafe.trim.ui
 
 import android.net.Uri
-import com.colorsafe.trim.model.KeyframeCheckResult
 import com.colorsafe.trim.model.VideoColorInfo
 
 data class TrimUiState(
@@ -16,7 +15,6 @@ data class TrimUiState(
     val isProbing: Boolean = false,
     val isSaving: Boolean = false,
     val savingStepMessage: String = "",
-    val pendingModeChoice: KeyframeCheckResult? = null,
     val successMessage: String? = null,
     val colorPreservedMessage: String? = null,
     val errorMessage: String? = null

@@ -62,8 +62,6 @@ class MainActivity : ComponentActivity() {
                     onStartChanged = viewModel::onStartChanged,
                     onEndChanged = viewModel::onEndChanged,
                     onSaveClicked = viewModel::onSaveClicked,
-                    onModeChosen = viewModel::onModeChosen,
-                    onDismissModeChoice = viewModel::dismissModeChoice,
                     onDismissError = viewModel::dismissError,
                     onDismissSuccess = viewModel::dismissSuccess,
                     onDurationReady = viewModel::onPlayerDurationReady
