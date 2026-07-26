@@ -118,11 +118,15 @@ class VideoTrimmer(private val context: Context) {
         add("-preset"); add("medium")
         add("-crf"); add("18")
 
+        // ffprobeが色情報を取得できない(unspecified)動画も多いため、
+        // その場合は民生カメラ映像で最も一般的なRec.709/limited rangeを既定値として明示する。
+        // タグを空のままにすると、再生側の推測が入力時と出力時で食い違い、
+        // 暗く/くすんで見える(マトリクス誤判定の典型症状)原因になる。
         sourceInfo.pixFmt?.let { add("-pix_fmt"); add(it) }
-        sourceInfo.colorSpace?.let { add("-colorspace"); add(it) }
-        sourceInfo.colorPrimaries?.let { add("-color_primaries"); add(it) }
-        sourceInfo.colorTransfer?.let { add("-color_trc"); add(it) }
-        sourceInfo.colorRange?.let { add("-color_range"); add(it) }
+        add("-colorspace"); add(sourceInfo.colorSpace ?: "bt709")
+        add("-color_primaries"); add(sourceInfo.colorPrimaries ?: "bt709")
+        add("-color_trc"); add(sourceInfo.colorTransfer ?: "bt709")
+        add("-color_range"); add(sourceInfo.colorRange ?: "tv")
 
         if (videoEncoder == "libx265") {
             // QuickTime/ギャラリー互換性向上のためのタグ付け
