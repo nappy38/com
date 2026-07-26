@@ -2,24 +2,55 @@ package com.colorsafe.trim.data
 
 import android.content.Context
 import android.net.Uri
-import com.arthenica.ffmpegkit.FFmpegKitConfig
+import android.os.StatFs
+import android.provider.OpenableColumns
 import com.arthenica.ffmpegkit.FFprobeKit
 import com.colorsafe.trim.model.KeyframeCheckResult
+import com.colorsafe.trim.model.TrimError
 import com.colorsafe.trim.model.VideoColorInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.File
 
 /**
- * ffprobeで動画の色空間・HDR情報・キーフレーム位置を解析するラッパー。
- * FFmpegKit互換フォークが提供するSAF("saf:")プロトコルを使い、
- * content:// のURIをコピーせずそのまま読む。
+ * 動画の取り込みと、ffprobeによる色空間・HDR情報・キーフレーム位置の解析を行うラッパー。
+ *
+ * content:// URIをffmpeg/ffprobeへ直接渡すSAFプロトコルは、FFmpegKit後継フォークによって
+ * 実装状況が異なり信頼できないため使わない。代わりに一度アプリのキャッシュ領域へ
+ * 実ファイルとしてコピーしてから処理することで、どの端末・どのフォークでも確実に動くようにする。
  */
 class VideoProbe(private val context: Context) {
 
-    /** SAF経由でffmpeg/ffprobeから読める入力パスに変換する */
-    fun resolveReadPath(uri: Uri): String {
-        return FFmpegKitConfig.getSafParameterForRead(context, uri)
+    private val storageBufferBytes = 100L * 1024 * 1024
+
+    /** content:// URIをアプリのキャッシュ領域へコピーし、実ファイルパスとして扱えるようにする */
+    suspend fun stageInputFile(uri: Uri, extension: String): File = withContext(Dispatchers.IO) {
+        val sourceSize = querySize(uri)
+        if (sourceSize != null) {
+            val free = StatFs(context.cacheDir.absolutePath).availableBytes
+            if (free < sourceSize + storageBufferBytes) {
+                throw TrimException(TrimError.InsufficientStorage)
+            }
+        }
+
+        val outFile = File(context.cacheDir, "colorsafe_input_${System.currentTimeMillis()}.$extension")
+        val input = context.contentResolver.openInputStream(uri)
+            ?: throw TrimException(TrimError.PermissionDenied)
+        input.use { streamIn ->
+            outFile.outputStream().use { streamOut -> streamIn.copyTo(streamOut) }
+        }
+        outFile
+    }
+
+    private fun querySize(uri: Uri): Long? {
+        context.contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+            val idx = cursor.getColumnIndex(OpenableColumns.SIZE)
+            if (idx >= 0 && cursor.moveToFirst() && !cursor.isNull(idx)) {
+                return cursor.getLong(idx)
+            }
+        }
+        return null
     }
 
     suspend fun probeColorInfo(readPath: String): VideoColorInfo = withContext(Dispatchers.IO) {
@@ -31,9 +62,7 @@ class VideoProbe(private val context: Context) {
             "-of", "json",
             readPath
         )
-        val session = FFprobeKit.execute(command.joinToString(" ") { arg ->
-            if (arg.contains(" ")) "\"$arg\"" else arg
-        })
+        val session = FFprobeKit.executeWithArguments(command)
         val output = session.output ?: throw IllegalStateException("ffprobeの出力が空です")
         parseColorInfo(output)
     }
@@ -91,7 +120,7 @@ class VideoProbe(private val context: Context) {
             "-of", "csv=p=0",
             readPath
         )
-        val session = FFprobeKit.execute(command.joinToString(" "))
+        val session = FFprobeKit.executeWithArguments(command)
         val output = session.output.orEmpty()
 
         var bestAtOrBefore: Double? = null

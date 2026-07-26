@@ -32,6 +32,16 @@ Androidで**色味(HDR/SDR・ガンマ・カラープロファイル)を一切�
    含まれていない場合は `VideoTrimmer.kt` の `videoEncoder` 選択ロジックを、実際に同梱されているエンコーダ名に合わせて調整してください。
 3. `FFmpegKit` / `FFprobeKit` のメソッド名(`executeWithArgumentsAsync` など)がフォークでも同一であるか
 
+### SAFプロトコル("saf:")は使わない
+
+当初 `content://` URIをコピーせず`FFmpegKitConfig.getSafParameterForRead()`経由で直接ffmpeg/ffprobeに
+読ませる実装にしていましたが、実機検証で「動画の処理に失敗しました」というエラーが再現しました。
+このSAF読み込みプロトコルはAndroid固有のネイティブ実装(サービス/コンテンツプロバイダ連携)に依存しており、
+公式FFmpegKitの後継フォークでの実装状況・動作が不安定なため、**動画選択時に一度アプリのキャッシュ領域へ
+実ファイルとしてコピーしてから処理する方式**(`VideoProbe.stageInputFile`)に変更しています。
+この方式はやや起動時の一手間(コピー時間・キャッシュ容量)がかかりますが、SAFプロトコルの実装差異に
+左右されずどの端末・フォークでも確実に動作します。
+
 このフォークが今後利用できなくなった場合は、`VideoProbe.kt` / `VideoTrimmer.kt` の呼び出し部分のみを
 別のFFmpegラッパー(例: 自前でNDKビルドしたFFmpeg)に差し替えれば、UI/ViewModel層は変更不要です。
 

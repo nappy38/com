@@ -160,7 +160,11 @@ private fun LoadedContent(
             color = Color.Black
         ) {
             if (state.videoUri != null) {
-                VideoPreview(uri = state.videoUri, onDurationReady = onDurationReady)
+                VideoPreview(
+                    uri = state.videoUri,
+                    seekToSeconds = state.previewSeekSeconds,
+                    onDurationReady = onDurationReady
+                )
             }
         }
 

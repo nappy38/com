@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.io.File
 
 class TrimViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -28,6 +29,7 @@ class TrimViewModel(application: Application) : AndroidViewModel(application) {
     val uiState: StateFlow<TrimUiState> = _uiState.asStateFlow()
 
     private var currentReadPath: String? = null
+    private var stagedInputFile: File? = null
 
     fun onVideoPicked(uri: Uri) {
         val context = getApplication<Application>()
@@ -37,6 +39,10 @@ class TrimViewModel(application: Application) : AndroidViewModel(application) {
                 Intent.FLAG_GRANT_READ_URI_PERMISSION
             )
         }
+
+        stagedInputFile?.delete()
+        stagedInputFile = null
+        currentReadPath = null
 
         val (name, extension) = resolveNameAndExtension(uri)
 
@@ -49,7 +55,9 @@ class TrimViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             try {
-                val readPath = probe.resolveReadPath(uri)
+                val staged = probe.stageInputFile(uri, extension)
+                stagedInputFile = staged
+                val readPath = staged.absolutePath
                 currentReadPath = readPath
                 val info = probe.probeColorInfo(readPath)
                 _uiState.value = _uiState.value.copy(
@@ -58,6 +66,11 @@ class TrimViewModel(application: Application) : AndroidViewModel(application) {
                     startSeconds = 0.0,
                     endSeconds = info.durationSeconds,
                     isProbing = false
+                )
+            } catch (e: TrimException) {
+                _uiState.value = _uiState.value.copy(
+                    isProbing = false,
+                    errorMessage = e.error.message
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -71,14 +84,18 @@ class TrimViewModel(application: Application) : AndroidViewModel(application) {
     fun onStartChanged(value: Float) {
         val end = _uiState.value.endSeconds
         val start = value.toDouble().coerceIn(0.0, end)
-        _uiState.value = _uiState.value.copy(startSeconds = start)
+        if (start != _uiState.value.startSeconds) {
+            _uiState.value = _uiState.value.copy(startSeconds = start, previewSeekSeconds = start)
+        }
     }
 
     fun onEndChanged(value: Float) {
         val duration = _uiState.value.durationSeconds
         val start = _uiState.value.startSeconds
         val end = value.toDouble().coerceIn(start, duration)
-        _uiState.value = _uiState.value.copy(endSeconds = end)
+        if (end != _uiState.value.endSeconds) {
+            _uiState.value = _uiState.value.copy(endSeconds = end, previewSeekSeconds = end)
+        }
     }
 
     fun onSaveClicked() {
@@ -100,6 +117,11 @@ class TrimViewModel(application: Application) : AndroidViewModel(application) {
                         pendingModeChoice = keyframeResult
                     )
                 }
+            } catch (e: TrimException) {
+                _uiState.value = _uiState.value.copy(
+                    isSaving = false,
+                    errorMessage = e.error.message
+                )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
@@ -209,5 +231,10 @@ class TrimViewModel(application: Application) : AndroidViewModel(application) {
             MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "mp4"
         }.lowercase()
         return name to extension
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stagedInputFile?.delete()
     }
 }

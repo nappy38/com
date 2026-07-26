@@ -12,6 +12,7 @@ data class TrimUiState(
     val durationSeconds: Double = 0.0,
     val startSeconds: Double = 0.0,
     val endSeconds: Double = 0.0,
+    val previewSeekSeconds: Double? = null,
     val isProbing: Boolean = false,
     val isSaving: Boolean = false,
     val savingStepMessage: String = "",
