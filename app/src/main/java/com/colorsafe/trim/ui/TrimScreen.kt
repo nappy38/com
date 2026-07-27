@@ -8,8 +8,11 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -21,12 +24,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.colorsafe.trim.R
 import kotlin.math.roundToInt
 
 @Composable
@@ -40,6 +48,8 @@ fun TrimScreen(
     onDismissSuccess: () -> Unit,
     onDurationReady: (Long) -> Unit = {}
 ) {
+    var showLicenses by remember { mutableStateOf(false) }
+
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
         Column(
             modifier = Modifier
@@ -67,9 +77,22 @@ fun TrimScreen(
 
             if (state.hasVideo) {
                 SaveButton(state = state, onSaveClicked = onSaveClicked)
-                androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(24.dp))
+                androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(8.dp))
             }
+
+            TextButton(onClick = { showLicenses = true }) {
+                Text(
+                    text = "ライセンス情報",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+
+    if (showLicenses) {
+        LicensesDialog(onDismiss = { showLicenses = false })
     }
 
     state.errorMessage?.let { message ->
@@ -218,6 +241,47 @@ private fun SaveButton(state: TrimUiState, onSaveClicked: () -> Unit) {
             Text("保存")
         }
     }
+}
+
+@Composable
+private fun LicensesDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val licenseText = remember {
+        val lgpl = context.resources.openRawResource(R.raw.license_lgpl_3_0)
+            .bufferedReader(Charsets.UTF_8).use { it.readText() }
+        val gpl = context.resources.openRawResource(R.raw.license_gpl_3_0)
+            .bufferedReader(Charsets.UTF_8).use { it.readText() }
+        buildString {
+            append("このアプリは動画処理に FFmpegKit(FFmpeg) を使用しています。\n")
+            append("配布物: com.moizhassan.ffmpeg:ffmpeg-kit-16kb\n")
+            append("ライセンス: GNU Lesser General Public License v3.0 (LGPL-3.0)\n")
+            append("ソース: https://github.com/moizhassankh/ffmpeg-kit-android-16KB\n")
+            append("(元プロジェクト: https://github.com/arthenica/ffmpeg-kit)\n")
+            append("\nLGPL-3.0はGNU General Public License v3.0(GPL-3.0)を一部引用しているため、\n")
+            append("両方のライセンス全文をあわせて掲載します。\n")
+            append("\n\n===== GNU LESSER GENERAL PUBLIC LICENSE Version 3 =====\n\n")
+            append(lgpl)
+            append("\n\n===== GNU GENERAL PUBLIC LICENSE Version 3 =====\n\n")
+            append(gpl)
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("オープンソースライセンス") },
+        text = {
+            Text(
+                text = licenseText,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier
+                    .heightIn(max = 420.dp)
+                    .verticalScroll(rememberScrollState())
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("閉じる") }
+        }
+    )
 }
 
 private fun formatTime(seconds: Double): String {
