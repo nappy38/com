@@ -204,6 +204,9 @@ class VideoTrimmer(private val context: Context) {
             add("-crf"); add("18")
         }
 
+        // 回転フィルターを通した映像がハードウェアエンコーダの想定外のピクセル形式にならないよう明示する
+        add("-pix_fmt"); add(if (isHighBitDepth) "p010le" else "yuv420p")
+
         add("-colorspace"); add(sourceInfo.colorSpace ?: "bt709")
         add("-color_primaries"); add(sourceInfo.colorPrimaries ?: "bt709")
         add("-color_trc"); add(sourceInfo.colorTransfer ?: "bt709")
