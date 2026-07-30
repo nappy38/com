@@ -108,18 +108,11 @@ class VideoTrimmer(private val context: Context) {
         sourceInfo: VideoColorInfo,
         output: File
     ): List<String> = buildList {
-        val isHighBitDepth = sourceInfo.pixFmt?.contains("10") == true || sourceInfo.pixFmt?.contains("12") == true
-        val isHevc = isHighBitDepth || sourceInfo.codecName == "hevc"
-        // このFFmpegKit後継フォークはGPLライセンスのlibx264/libx265を同梱していないビルドがあり、
-        // その場合 "-preset"/"-crf" が「Unrecognized option」で失敗する。
-        // ライセンス不問で同梱されているAndroid端末のハードウェアエンコーダ(MediaCodec)を使う。
-        val videoEncoder = when {
-            sourceInfo.codecName == "vp9" -> "libvpx-vp9"
-            sourceInfo.codecName == "av1" -> "libsvtav1"
-            isHevc -> "hevc_mediacodec"
-            else -> "h264_mediacodec"
-        }
-        val usesMediaCodec = videoEncoder.endsWith("_mediacodec")
+        // このFFmpegKit後継フォークはGPLライセンスのlibx264/libx265を同梱しておらず、
+        // 実機検証の結果 hevc_mediacodec も未対応(Unknown encoder)と判明した。
+        // h264_mediacodec のみが確実に動作するため、元がHEVCでも統一してこれを使う
+        // (回転が必要な場合のみH.264への変換が発生する。色空間タグは引き続き引き継ぐ)。
+        val videoEncoder = "h264_mediacodec"
 
         add("-y")
         add("-ss"); add(start.toString())
@@ -127,28 +120,18 @@ class VideoTrimmer(private val context: Context) {
         add("-t"); add(duration.toString())
         add("-map"); add("0")
         add("-c:v"); add(videoEncoder)
-        if (usesMediaCodec) {
-            val bitrate = sourceInfo.bitrate?.takeIf { it > 0 } ?: estimateBitrate(sourceInfo)
-            add("-b:v"); add(bitrate.toString())
-        } else {
-            add("-preset"); add("medium")
-            add("-crf"); add("18")
-        }
+        val bitrate = sourceInfo.bitrate?.takeIf { it > 0 } ?: estimateBitrate(sourceInfo)
+        add("-b:v"); add(bitrate.toString())
 
         // ffprobeが色情報を取得できない(unspecified)動画も多いため、
         // その場合は民生カメラ映像で最も一般的なRec.709/limited rangeを既定値として明示する。
         // タグを空のままにすると、再生側の推測が入力時と出力時で食い違い、
         // 暗く/くすんで見える(マトリクス誤判定の典型症状)原因になる。
-        sourceInfo.pixFmt?.let { add("-pix_fmt"); add(it) }
+        add("-pix_fmt"); add("yuv420p")
         add("-colorspace"); add(sourceInfo.colorSpace ?: "bt709")
         add("-color_primaries"); add(sourceInfo.colorPrimaries ?: "bt709")
         add("-color_trc"); add(sourceInfo.colorTransfer ?: "bt709")
         add("-color_range"); add(sourceInfo.colorRange ?: "tv")
-
-        if (videoEncoder == "libx265" || videoEncoder == "hevc_mediacodec") {
-            // QuickTime/ギャラリー互換性向上のためのタグ付け
-            add("-tag:v"); add("hvc1")
-        }
 
         add("-c:a"); add("copy")
         if (faststart) {
@@ -171,15 +154,9 @@ class VideoTrimmer(private val context: Context) {
         sourceInfo: VideoColorInfo,
         output: File
     ): List<String> = buildList {
-        val isHighBitDepth = sourceInfo.pixFmt?.contains("10") == true || sourceInfo.pixFmt?.contains("12") == true
-        val isHevc = isHighBitDepth || sourceInfo.codecName == "hevc"
-        val videoEncoder = when {
-            sourceInfo.codecName == "vp9" -> "libvpx-vp9"
-            sourceInfo.codecName == "av1" -> "libsvtav1"
-            isHevc -> "hevc_mediacodec"
-            else -> "h264_mediacodec"
-        }
-        val usesMediaCodec = videoEncoder.endsWith("_mediacodec")
+        // h264_mediacodec のみがこのFFmpegビルドで確実に動作することを実機で確認済み
+        // (hevc_mediacodecは"Unknown encoder"で失敗、libx264/265は同梱されていない)。
+        val videoEncoder = "h264_mediacodec"
 
         val angleRad = Math.toRadians(angleDegrees.toDouble())
         val (cropW, cropH) = largestInteriorRect(sourceInfo.width.toDouble(), sourceInfo.height.toDouble(), angleRad)
@@ -196,25 +173,16 @@ class VideoTrimmer(private val context: Context) {
         add("-map"); add("0:v:0")
         add("-map"); add("0:a?")
         add("-c:v"); add(videoEncoder)
-        if (usesMediaCodec) {
-            val bitrate = sourceInfo.bitrate?.takeIf { it > 0 } ?: estimateBitrate(sourceInfo)
-            add("-b:v"); add(bitrate.toString())
-        } else {
-            add("-preset"); add("medium")
-            add("-crf"); add("18")
-        }
+        val bitrate = sourceInfo.bitrate?.takeIf { it > 0 } ?: estimateBitrate(sourceInfo)
+        add("-b:v"); add(bitrate.toString())
 
         // 回転フィルターを通した映像がハードウェアエンコーダの想定外のピクセル形式にならないよう明示する
-        add("-pix_fmt"); add(if (isHighBitDepth) "p010le" else "yuv420p")
+        add("-pix_fmt"); add("yuv420p")
 
         add("-colorspace"); add(sourceInfo.colorSpace ?: "bt709")
         add("-color_primaries"); add(sourceInfo.colorPrimaries ?: "bt709")
         add("-color_trc"); add(sourceInfo.colorTransfer ?: "bt709")
         add("-color_range"); add(sourceInfo.colorRange ?: "tv")
-
-        if (videoEncoder == "libx265" || videoEncoder == "hevc_mediacodec") {
-            add("-tag:v"); add("hvc1")
-        }
 
         add("-c:a"); add("copy")
         if (faststart) {
