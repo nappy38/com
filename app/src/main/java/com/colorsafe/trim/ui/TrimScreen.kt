@@ -46,7 +46,8 @@ fun TrimScreen(
     onSaveClicked: () -> Unit,
     onDismissError: () -> Unit,
     onDismissSuccess: () -> Unit,
-    onDurationReady: (Long) -> Unit = {}
+    onDurationReady: (Long) -> Unit = {},
+    onSwitchMode: () -> Unit = {}
 ) {
     var showLicenses by remember { mutableStateOf(false) }
 
@@ -59,6 +60,9 @@ fun TrimScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
+            TextButton(onClick = onSwitchMode, modifier = Modifier.align(Alignment.Start)) {
+                Text("◀ 写真の傾き補正へ", style = MaterialTheme.typography.bodySmall)
+            }
             AppHeader()
 
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
