@@ -1,6 +1,7 @@
 package com.colorsafe.trim.ui
 
 import android.net.Uri
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -30,7 +32,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -43,11 +47,12 @@ fun TrimScreen(
     onPickVideoClick: () -> Unit,
     onStartChanged: (Float) -> Unit,
     onEndChanged: (Float) -> Unit,
+    onAngleChanged: (Float) -> Unit,
+    onResetAngle: () -> Unit,
     onSaveClicked: () -> Unit,
     onDismissError: () -> Unit,
     onDismissSuccess: () -> Unit,
-    onDurationReady: (Long) -> Unit = {},
-    onSwitchMode: () -> Unit = {}
+    onDurationReady: (Long) -> Unit = {}
 ) {
     var showLicenses by remember { mutableStateOf(false) }
 
@@ -60,9 +65,6 @@ fun TrimScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
-            TextButton(onClick = onSwitchMode, modifier = Modifier.align(Alignment.Start)) {
-                Text("◀ 写真の傾き補正へ", style = MaterialTheme.typography.bodySmall)
-            }
             AppHeader()
 
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -73,6 +75,8 @@ fun TrimScreen(
                         state = state,
                         onStartChanged = onStartChanged,
                         onEndChanged = onEndChanged,
+                        onAngleChanged = onAngleChanged,
+                        onResetAngle = onResetAngle,
                         onPickVideoClick = onPickVideoClick,
                         onDurationReady = onDurationReady
                     )
@@ -161,6 +165,8 @@ private fun LoadedContent(
     state: TrimUiState,
     onStartChanged: (Float) -> Unit,
     onEndChanged: (Float) -> Unit,
+    onAngleChanged: (Float) -> Unit,
+    onResetAngle: () -> Unit,
     onPickVideoClick: () -> Unit,
     onDurationReady: (Long) -> Unit
 ) {
@@ -177,12 +183,37 @@ private fun LoadedContent(
                 .clip(RoundedCornerShape(16.dp)),
             color = Color.Black
         ) {
-            if (state.videoUri != null) {
-                VideoPreview(
-                    uri = state.videoUri,
-                    seekToSeconds = state.previewSeekSeconds,
-                    onDurationReady = onDurationReady
-                )
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (state.videoUri != null) {
+                    VideoPreview(
+                        uri = state.videoUri,
+                        seekToSeconds = state.previewSeekSeconds,
+                        modifier = Modifier.graphicsLayer(rotationZ = state.angleDegrees),
+                        onDurationReady = onDurationReady
+                    )
+                }
+                if (state.angleDegrees != 0f) {
+                    // 傾き調整の目安になる、回転しない固定の三分割ガイド線
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val guideColor = Color.White.copy(alpha = 0.6f)
+                        val thirdW = size.width / 3f
+                        val thirdH = size.height / 3f
+                        for (i in 1..2) {
+                            drawLine(
+                                guideColor,
+                                Offset(thirdW * i, 0f),
+                                Offset(thirdW * i, size.height),
+                                strokeWidth = 1.5f
+                            )
+                            drawLine(
+                                guideColor,
+                                Offset(0f, thirdH * i),
+                                Offset(size.width, thirdH * i),
+                                strokeWidth = 1.5f
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -200,7 +231,7 @@ private fun LoadedContent(
             }
         }
 
-        androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(20.dp))
+        androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
 
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
@@ -216,6 +247,24 @@ private fun LoadedContent(
                 valueRange = 0f..(state.durationSeconds.toFloat().coerceAtLeast(0.1f)),
                 enabled = !state.isSaving
             )
+        }
+
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = "傾き補正 %.1f°".format(state.angleDegrees),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Slider(
+                value = state.angleDegrees,
+                onValueChange = onAngleChanged,
+                valueRange = -45f..45f,
+                enabled = !state.isSaving
+            )
+            if (state.angleDegrees != 0f) {
+                TextButton(onClick = onResetAngle, enabled = !state.isSaving) {
+                    Text("傾きをリセット")
+                }
+            }
         }
 
         androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(4.dp))

@@ -4,9 +4,6 @@
     <!-- Android 13 (API 33) 以降: 動画の読み取り -->
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
 
-    <!-- Android 13 (API 33) 以降: 写真の読み取り -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-
     <!-- Android 12 以前: 従来の外部ストレージ読み取り -->
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"

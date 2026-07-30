@@ -98,9 +98,18 @@ class TrimViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun onAngleChanged(angle: Float) {
+        _uiState.value = _uiState.value.copy(angleDegrees = angle.coerceIn(-45f, 45f))
+    }
+
+    fun onResetAngle() {
+        _uiState.value = _uiState.value.copy(angleDegrees = 0f)
+    }
+
     /**
-     * 色味を一切変えないことを最優先するため、常に -c copy (再エンコードなし)のみを使う。
-     * 開始位置がキーフレームでない場合、実際の開始点は最寄りのキーフレームにスナップされる。
+     * 傾き補正なし(角度0)のときは色味を一切変えないため常に -c copy (再エンコードなし)を使う。
+     * 傾き補正ありのときは回転のため再エンコードが必要だが、色空間情報は元動画から引き継ぐ。
+     * 開始位置がキーフレームでない場合、-c copy の実際の開始点は最寄りのキーフレームにスナップされる。
      */
     fun onSaveClicked() {
         val state = _uiState.value
@@ -145,7 +154,11 @@ class TrimViewModel(application: Application) : AndroidViewModel(application) {
 
         _uiState.value = state.copy(
             isSaving = true,
-            savingStepMessage = if (mode == TrimMode.FAST_STREAM_COPY) "高速トリム中(色味完全維持)..." else "再エンコード中..."
+            savingStepMessage = when {
+                state.angleDegrees != 0f -> "傾き補正中..."
+                mode == TrimMode.FAST_STREAM_COPY -> "高速トリム中(色味完全維持)..."
+                else -> "再エンコード中..."
+            }
         )
 
         try {
@@ -155,7 +168,8 @@ class TrimViewModel(application: Application) : AndroidViewModel(application) {
                 startSeconds = state.startSeconds,
                 endSeconds = state.endSeconds,
                 outputExtension = state.extension,
-                mode = mode
+                mode = mode,
+                angleDegrees = state.angleDegrees
             )
 
             _uiState.value = _uiState.value.copy(savingStepMessage = "色空間を確認中...")

@@ -67,8 +67,5 @@ dependencies {
     // API/パッケージ名は互換の com.arthenica.ffmpegkit.*
     implementation("com.moizhassan.ffmpeg:ffmpeg-kit-16kb:6.0.0")
 
-    // 写真の傾き補正でEXIF回転情報を読むため
-    implementation("androidx.exifinterface:exifinterface:1.3.7")
-
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 }

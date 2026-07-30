@@ -13,12 +13,17 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.coroutines.resume
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.roundToInt
+import kotlin.math.sin
 
 class TrimException(val error: TrimError) : Exception(error.message)
 
 /**
  * ffmpegでのトリム実行。最優先は -c copy (再エンコードなし)。
- * 再エンコードが必要な場合は、ffprobeで取得した色空間情報をそのまま引き継ぐ。
+ * 傾き補正(回転)が指定された場合や再エンコードが必要な場合は、
+ * ffprobeで取得した色空間情報をそのまま引き継いで色味の変化を最小限にする。
  */
 class VideoTrimmer(private val context: Context) {
 
@@ -31,7 +36,8 @@ class VideoTrimmer(private val context: Context) {
         startSeconds: Double,
         endSeconds: Double,
         outputExtension: String,
-        mode: TrimMode
+        mode: TrimMode,
+        angleDegrees: Float = 0f
     ): File = withContext(Dispatchers.IO) {
         ensureEnoughStorage(estimatedOutputBytes(sourceInfo, endSeconds - startSeconds))
 
@@ -39,7 +45,9 @@ class VideoTrimmer(private val context: Context) {
         val outputFile = File(context.cacheDir, "colorsafe_trim_${System.currentTimeMillis()}.$outputExtension")
         val useFaststart = outputExtension.equals("mp4", true) || outputExtension.equals("mov", true)
 
-        val command = when (mode) {
+        val command = if (angleDegrees != 0f) {
+            buildRotateCommand(readPath, startSeconds, duration, useFaststart, angleDegrees, sourceInfo, outputFile)
+        } else when (mode) {
             TrimMode.FAST_STREAM_COPY -> buildCopyCommand(readPath, startSeconds, duration, outputFile)
             TrimMode.ACCURATE_REENCODE -> buildReencodeCommand(
                 readPath, startSeconds, duration, useFaststart, sourceInfo, outputFile
@@ -147,6 +155,92 @@ class VideoTrimmer(private val context: Context) {
             add("-movflags"); add("+faststart")
         }
         add(output.absolutePath)
+    }
+
+    /**
+     * 傾き補正(任意角度の回転)をしてトリムする。回転はピクセルを動かす処理のため
+     * 必ず再エンコードになるが、色空間情報は元動画からそのまま引き継いで色味の変化を防ぐ。
+     * 回転で生じる黒い余白は、余白が出ない最大サイズで自動的に中央クロップする。
+     */
+    private fun buildRotateCommand(
+        readPath: String,
+        start: Double,
+        duration: Double,
+        faststart: Boolean,
+        angleDegrees: Float,
+        sourceInfo: VideoColorInfo,
+        output: File
+    ): List<String> = buildList {
+        val isHighBitDepth = sourceInfo.pixFmt?.contains("10") == true || sourceInfo.pixFmt?.contains("12") == true
+        val isHevc = isHighBitDepth || sourceInfo.codecName == "hevc"
+        val videoEncoder = when {
+            sourceInfo.codecName == "vp9" -> "libvpx-vp9"
+            sourceInfo.codecName == "av1" -> "libsvtav1"
+            isHevc -> "hevc_mediacodec"
+            else -> "h264_mediacodec"
+        }
+        val usesMediaCodec = videoEncoder.endsWith("_mediacodec")
+
+        val angleRad = Math.toRadians(angleDegrees.toDouble())
+        val (cropW, cropH) = largestInteriorRect(sourceInfo.width.toDouble(), sourceInfo.height.toDouble(), angleRad)
+        // 多くのエンコーダは偶数の幅・高さを要求するため2の倍数に切り下げる
+        val cropWInt = ((cropW.roundToInt()) / 2 * 2).coerceAtLeast(2)
+        val cropHInt = ((cropH.roundToInt()) / 2 * 2).coerceAtLeast(2)
+
+        add("-y")
+        add("-ss"); add(start.toString())
+        add("-i"); add(readPath)
+        add("-t"); add(duration.toString())
+        add("-vf")
+        add("rotate=a=$angleRad:ow=rotw($angleRad):oh=roth($angleRad):c=black,crop=$cropWInt:$cropHInt")
+        add("-map"); add("0:v:0")
+        add("-map"); add("0:a?")
+        add("-c:v"); add(videoEncoder)
+        if (usesMediaCodec) {
+            val bitrate = sourceInfo.bitrate?.takeIf { it > 0 } ?: estimateBitrate(sourceInfo)
+            add("-b:v"); add(bitrate.toString())
+        } else {
+            add("-preset"); add("medium")
+            add("-crf"); add("18")
+        }
+
+        add("-colorspace"); add(sourceInfo.colorSpace ?: "bt709")
+        add("-color_primaries"); add(sourceInfo.colorPrimaries ?: "bt709")
+        add("-color_trc"); add(sourceInfo.colorTransfer ?: "bt709")
+        add("-color_range"); add(sourceInfo.colorRange ?: "tv")
+
+        if (videoEncoder == "libx265" || videoEncoder == "hevc_mediacodec") {
+            add("-tag:v"); add("hvc1")
+        }
+
+        add("-c:a"); add("copy")
+        if (faststart) {
+            add("-movflags"); add("+faststart")
+        }
+        add(output.absolutePath)
+    }
+
+    /**
+     * w×hの矩形をangleRadだけ回転させたときに、余白なしで収まる最大の軸並行矩形のサイズを求める。
+     * (出典: 回転画像の最大内接矩形を求める一般的なアルゴリズム)
+     */
+    private fun largestInteriorRect(w: Double, h: Double, angleRad: Double): Pair<Double, Double> {
+        if (w <= 0 || h <= 0) return 0.0 to 0.0
+
+        val widthIsLonger = w >= h
+        val sideLong = if (widthIsLonger) w else h
+        val sideShort = if (widthIsLonger) h else w
+
+        val sinA = abs(sin(angleRad))
+        val cosA = abs(cos(angleRad))
+
+        return if (sideShort <= 2.0 * sinA * cosA * sideLong || abs(sinA - cosA) < 1e-10) {
+            val x = 0.5 * sideShort
+            if (widthIsLonger) (x / sinA) to (x / cosA) else (x / cosA) to (x / sinA)
+        } else {
+            val cos2a = cosA * cosA - sinA * sinA
+            ((w * cosA - h * sinA) / cos2a) to ((h * cosA - w * sinA) / cos2a)
+        }
     }
 
     private fun ensureEnoughStorage(estimatedBytes: Long) {
