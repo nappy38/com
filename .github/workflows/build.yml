@@ -4,9 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [ main ]
-    # ログ書き戻しコミットでビルドが再帰しないように除外する
-    paths-ignore:
-      - 'ci/**'
+    # ログ書き戻しコミットの再帰は、そのコミットメッセージの [skip ci] で止める
 
 permissions:
   contents: write
