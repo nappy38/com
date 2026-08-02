@@ -4,8 +4,10 @@ import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.StatFs
-import android.util.Size
 import androidx.media3.common.MediaItem
+// Media3 は android.util.Size ではなく独自の Size を使う。取り違えると
+// getOutputSize がインターフェースを実装していない扱いになる。
+import androidx.media3.common.util.Size
 import androidx.media3.effect.Crop
 import androidx.media3.effect.OverlaySettings
 import androidx.media3.effect.Presentation
