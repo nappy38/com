@@ -101,21 +101,25 @@ fun StackScreen(
                         bitmap = state.previewBitmap.asImageBitmap(),
                         contentDescription = "3分割のプレビュー",
                         modifier = Modifier
-                            .height(300.dp)
+                            .height(380.dp)
                             .aspectRatio(9f / 16f)
                             .clip(RoundedCornerShape(6.dp))
                     )
                 } else {
                     Box(
                         modifier = Modifier
-                            .height(300.dp)
+                            .height(380.dp)
                             .aspectRatio(9f / 16f)
                             .clip(RoundedCornerShape(6.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "動画を選ぶと\nここに出ます",
+                            text = if (state.filledCount == 0) {
+                                "動画を選ぶと\nここに出ます"
+                            } else {
+                                "プレビューを\n作れませんでした"
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -123,7 +127,7 @@ fun StackScreen(
                 }
             }
 
-            if (state.isReady) {
+            if (state.filledCount > 0) {
                 LabeledSlider(
                     label = "再生位置",
                     value = state.previewPosition,

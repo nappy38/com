@@ -20,8 +20,12 @@ data class StackUiState(
     /** 音を採用するパネル。-1 で無音 */
     val audioPanelIndex: Int = 1,
     val outputWidth: Int = 1080,
-    /** プレビューで見ている位置(0.0〜1.0) */
-    val previewPosition: Float = 0f,
+    /**
+     * プレビューで見ている位置(0.0〜1.0)。
+     * 冒頭は暗転していたりカメラの露出が合っていないことが多く、
+     * 0だと真っ暗な絵を見せてしまうため、少し進んだ位置を既定にする。
+     */
+    val previewPosition: Float = 0.35f,
     val previewBitmap: Bitmap? = null,
     val loadingPanelIndex: Int? = null,
     val isSaving: Boolean = false,

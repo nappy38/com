@@ -56,6 +56,9 @@ class StackViewModel(application: Application) : AndroidViewModel(application) {
                     durationSeconds = info.durationSeconds
                 )
 
+                // 描画中の処理を先に止めてからキャッシュを捨てる。逆にすると
+                // 描画側が消えたフレームを掴んだままになる。
+                previewJob?.cancel()
                 previewRenderer.clear()
                 _uiState.value = _uiState.value.copy(
                     panels = panels,
@@ -186,13 +189,18 @@ class StackViewModel(application: Application) : AndroidViewModel(application) {
         previewJob = viewModelScope.launch {
             val state = _uiState.value
             if (state.filledCount == 0) return@launch
-            val bitmap = previewRenderer.render(
-                files = state.panels.map { it.file },
-                adjusts = state.panels.map { it.adjust },
-                layout = state.layout,
-                positionFraction = state.previewPosition
-            )
-            _uiState.value = _uiState.value.copy(previewBitmap = bitmap)
+            // プレビューの失敗で viewModelScope 全体を巻き込まないよう囲う。
+            // ここで例外を素通しすると、以降どの描画も走らなくなる。
+            runCatching {
+                previewRenderer.render(
+                    files = state.panels.map { it.file },
+                    adjusts = state.panels.map { it.adjust },
+                    layout = state.layout,
+                    positionFraction = state.previewPosition
+                )
+            }.onSuccess { bitmap ->
+                _uiState.value = _uiState.value.copy(previewBitmap = bitmap)
+            }
         }
     }
 

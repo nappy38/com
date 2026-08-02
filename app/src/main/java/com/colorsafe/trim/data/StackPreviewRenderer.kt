@@ -101,9 +101,14 @@ class StackPreviewRenderer {
         output
     }
 
-    /** 選び直したときに古いフレームを残さない */
+    /**
+     * 選び直したときに古いフレームを残さない。
+     *
+     * ここで recycle() してはいけない。描画中の別スレッドがそのフレームを
+     * 掴んでいると「破棄済みBitmapを使った」で落ち、以後プレビューが
+     * 出なくなる。参照を外すだけにしてGCに任せる。
+     */
     fun clear() {
-        frameCache.values.forEach { if (!it.isRecycled) it.recycle() }
         frameCache.clear()
     }
 
@@ -120,10 +125,18 @@ class StackPreviewRenderer {
 
             frameCache[key]?.let { return it }
 
+            // OPTION_CLOSEST_SYNC は、その時刻より前にキーフレームが無いと null を返す。
+            // 端末や撮影アプリによっては先頭付近で普通に起きるので、順に緩めて探す。
             val frame = retriever.getFrameAtTime(
                 timeMs * 1000L,
                 MediaMetadataRetriever.OPTION_CLOSEST_SYNC
             )
+                ?: retriever.getFrameAtTime(
+                    timeMs * 1000L,
+                    MediaMetadataRetriever.OPTION_CLOSEST
+                )
+                ?: retriever.getFrameAtTime()
+
             if (frame != null) {
                 if (frameCache.size > 24) clear()
                 frameCache[key] = frame
