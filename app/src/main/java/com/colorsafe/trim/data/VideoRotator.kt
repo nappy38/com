@@ -1,6 +1,7 @@
 package com.colorsafe.trim.data
 
 import android.content.Context
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.effect.Presentation
@@ -41,10 +42,16 @@ class VideoRotator(private val context: Context) {
     ): File = withContext(Dispatchers.Main) {
         val outputFile = File(context.cacheDir, "colorsafe_rotate_${System.currentTimeMillis()}.mp4")
 
+        // ffprobeが返す width/height は、動画に埋め込まれた回転タグ(縦向き撮影など)を
+        // 考慮しない「生のエンコード時の寸法」であることが多い。Media3(Transformer含む)は
+        // 回転タグを尊重して正しい向きでデコードするため、クロップ計算もそれに合わせて
+        // 実際の表示上の縦横に補正する必要がある。
+        val (displayWidth, displayHeight) = resolveDisplayDimensions(inputFile, sourceInfo.width, sourceInfo.height)
+
         val angleRad = Math.toRadians(angleDegrees.toDouble())
         val (cropWD, cropHD) = largestInteriorRect(
-            sourceInfo.width.toDouble(),
-            sourceInfo.height.toDouble(),
+            displayWidth.toDouble(),
+            displayHeight.toDouble(),
             angleRad
         )
         // 多くのエンコーダは偶数の幅・高さを要求するため2の倍数に切り下げる
@@ -105,6 +112,28 @@ class VideoRotator(private val context: Context) {
             cont.invokeOnCancellation {
                 transformer.cancel()
             }
+        }
+    }
+
+    /**
+     * MediaMetadataRetrieverで動画の回転タグを読み、実際に画面表示される向きの
+     * 幅・高さを返す(90°/270°回転タグがある場合は幅と高さを入れ替える)。
+     */
+    private fun resolveDisplayDimensions(inputFile: File, fallbackWidth: Int, fallbackHeight: Int): Pair<Int, Int> {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(inputFile.absolutePath)
+            val rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)
+                ?.toIntOrNull() ?: 0
+            val rawWidth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+                ?.toIntOrNull() ?: fallbackWidth
+            val rawHeight = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
+                ?.toIntOrNull() ?: fallbackHeight
+            if (rotation == 90 || rotation == 270) rawHeight to rawWidth else rawWidth to rawHeight
+        } catch (e: Exception) {
+            fallbackWidth to fallbackHeight
+        } finally {
+            retriever.release()
         }
     }
 
