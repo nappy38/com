@@ -27,7 +27,17 @@ jobs:
           gradle-version: 8.9
 
       - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
+        run: |
+          set -o pipefail
+          gradle assembleDebug --stacktrace 2>&1 | tee build-log.txt
+
+      # 失敗時もログを取り出せるようにする(実行ログのAPIは管理者権限が要るため)
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build-log.txt
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
