@@ -4,6 +4,12 @@ on:
   workflow_dispatch:
   push:
     branches: [ main ]
+    # ログ書き戻しコミットでビルドが再帰しないように除外する
+    paths-ignore:
+      - 'ci/**'
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -31,7 +37,19 @@ jobs:
           set -o pipefail
           gradle assembleDebug --stacktrace 2>&1 | tee build-log.txt
 
-      # 失敗時もログを取り出せるようにする(実行ログのAPIは管理者権限が要るため)
+      # 実行ログのAPIも成果物のAPIも認証を要求するため、失敗時は
+      # ログをリポジトリへ書き戻して認証なしで読めるようにする。
+      - name: Publish build log on failure
+        if: failure()
+        run: |
+          mkdir -p ci
+          tail -c 60000 build-log.txt > ci/last-build-log.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ci/last-build-log.txt
+          git commit -m "CI: 直近のビルドログ [skip ci]"
+          git push
+
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
