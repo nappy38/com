@@ -9,22 +9,23 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.FilterChip
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.ViewAgenda
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -51,9 +52,12 @@ class MainActivity : ComponentActivity() {
                 val state by viewModel.uiState.collectAsState()
                 val stackState by stackViewModel.uiState.collectAsState()
 
-                var mode by remember { mutableIntStateOf(MODE_TRIM) }
+                // 動画選択の画面を開いている間にActivityが作り直されても
+                // 値が失われないよう rememberSaveable にする。remember だと
+                // 枠の番号が0に戻り、選んだ動画が別の枠に入ってしまう。
+                var mode by rememberSaveable { mutableIntStateOf(MODE_TRIM) }
                 // 3分割で「どの枠へ入れる動画か」を、選択ダイアログを跨いで覚えておく
-                var pendingPanelIndex by remember { mutableIntStateOf(0) }
+                var pendingPanelIndex by rememberSaveable { mutableIntStateOf(0) }
 
                 val documentPickerLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.OpenDocument()
@@ -92,24 +96,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     Column(modifier = Modifier.fillMaxSize()) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 20.dp, end = 20.dp, top = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            FilterChip(
-                                selected = mode == MODE_TRIM,
-                                onClick = { mode = MODE_TRIM },
-                                label = { Text("トリム") }
-                            )
-                            FilterChip(
-                                selected = mode == MODE_STACK,
-                                onClick = { mode = MODE_STACK },
-                                label = { Text("3分割") }
-                            )
-                        }
-
+                        // 切り替えは画面下に置く。上端だと片手で親指が届かない。
                         Box(modifier = Modifier.weight(1f)) {
                             if (mode == MODE_STACK) {
                                 StackScreen(
@@ -152,6 +139,21 @@ class MainActivity : ComponentActivity() {
                                     onDurationReady = viewModel::onPlayerDurationReady
                                 )
                             }
+                        }
+
+                        NavigationBar {
+                            NavigationBarItem(
+                                selected = mode == MODE_TRIM,
+                                onClick = { mode = MODE_TRIM },
+                                icon = { Icon(Icons.Filled.ContentCut, contentDescription = null) },
+                                label = { Text("トリム") }
+                            )
+                            NavigationBarItem(
+                                selected = mode == MODE_STACK,
+                                onClick = { mode = MODE_STACK },
+                                icon = { Icon(Icons.Filled.ViewAgenda, contentDescription = null) },
+                                label = { Text("3分割") }
+                            )
                         }
                     }
                 }

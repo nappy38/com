@@ -90,31 +90,36 @@ fun StackScreen(
             }
 
             // ---------- プレビュー ----------
-            if (state.previewBitmap != null) {
-                Image(
-                    bitmap = state.previewBitmap.asImageBitmap(),
-                    contentDescription = "3分割のプレビュー",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 420.dp)
-                        .aspectRatio(9f / 16f)
-                        .clip(RoundedCornerShape(6.dp))
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(9f / 16f)
-                        .heightIn(max = 420.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "動画を選ぶとここに出ます",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            // 9:16を画面幅いっぱいにすると縦700dp超になり、下のボタンまで
+            // 延々スクロールすることになる。高さを固定して幅を導く。
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                if (state.previewBitmap != null) {
+                    Image(
+                        bitmap = state.previewBitmap.asImageBitmap(),
+                        contentDescription = "3分割のプレビュー",
+                        modifier = Modifier
+                            .height(300.dp)
+                            .aspectRatio(9f / 16f)
+                            .clip(RoundedCornerShape(6.dp))
                     )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .height(300.dp)
+                            .aspectRatio(9f / 16f)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "動画を選ぶと\nここに出ます",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
