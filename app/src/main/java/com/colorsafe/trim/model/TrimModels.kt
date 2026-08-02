@@ -1,14 +1,5 @@
 package com.colorsafe.trim.model
 
-/** トリム方式。ユーザーが選ぶ「高速」か「正確」か。 */
-enum class TrimMode {
-    /** -c copy で再エンコードなし。画質・色味・HDRを完全維持。開始位置は最寄りのキーフレームにスナップされる。 */
-    FAST_STREAM_COPY,
-
-    /** 再エンコードして指定位置ぴったりで切り出す。色空間情報は元動画から引き継ぐ。 */
-    ACCURATE_REENCODE
-}
-
 /** キーフレーム解析の結果。 */
 data class KeyframeCheckResult(
     val requestedStartSeconds: Double,
@@ -27,10 +18,3 @@ sealed class TrimError(val message: String) {
     data object Cancelled : TrimError("処理をキャンセルしました。")
     data class Unknown(val detail: String) : TrimError("予期しないエラーが発生しました。($detail)")
 }
-
-/** トリム成功時の結果。 */
-data class TrimSuccess(
-    val savedUri: String,
-    val usedMode: TrimMode,
-    val colorPreserved: Boolean
-)

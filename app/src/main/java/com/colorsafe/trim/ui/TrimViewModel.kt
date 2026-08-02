@@ -10,9 +10,9 @@ import androidx.lifecycle.viewModelScope
 import com.colorsafe.trim.data.MediaStoreSaver
 import com.colorsafe.trim.data.TrimException
 import com.colorsafe.trim.data.VideoProbe
+import com.colorsafe.trim.data.VideoRotator
 import com.colorsafe.trim.data.VideoTrimmer
 import com.colorsafe.trim.model.TrimError
-import com.colorsafe.trim.model.TrimMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +23,7 @@ class TrimViewModel(application: Application) : AndroidViewModel(application) {
 
     private val probe = VideoProbe(application)
     private val trimmer = VideoTrimmer(application)
+    private val rotator = VideoRotator(application)
     private val saver = MediaStoreSaver(application)
 
     private val _uiState = MutableStateFlow(TrimUiState())
@@ -108,8 +109,7 @@ class TrimViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * 傾き補正なし(角度0)のときは色味を一切変えないため常に -c copy (再エンコードなし)を使う。
-     * 傾き補正ありのときは回転のため再エンコードが必要だが、色空間情報は元動画から引き継ぐ。
-     * 開始位置がキーフレームでない場合、-c copy の実際の開始点は最寄りのキーフレームにスナップされる。
+     * 傾き補正ありのときは回転のため再エンコード(Media3 Transformer)が必要になる。
      */
     fun onSaveClicked() {
         val state = _uiState.value
@@ -117,7 +117,7 @@ class TrimViewModel(application: Application) : AndroidViewModel(application) {
         if (!state.canSave) return
 
         _uiState.value = state.copy(isSaving = true, savingStepMessage = "")
-        viewModelScope.launch { performTrim(TrimMode.FAST_STREAM_COPY) }
+        viewModelScope.launch { performTrim() }
     }
 
     fun dismissError() {
@@ -147,38 +147,46 @@ class TrimViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = _uiState.value.copy(successMessage = null, colorPreservedMessage = null)
     }
 
-    private suspend fun performTrim(mode: TrimMode) {
+    private suspend fun performTrim() {
         val state = _uiState.value
         val readPath = currentReadPath ?: return
+        val stagedFile = stagedInputFile ?: return
         val sourceInfo = state.colorInfo ?: return
+        val isRotating = state.angleDegrees != 0f
 
         _uiState.value = state.copy(
             isSaving = true,
-            savingStepMessage = when {
-                state.angleDegrees != 0f -> "傾き補正中..."
-                mode == TrimMode.FAST_STREAM_COPY -> "高速トリム中(色味完全維持)..."
-                else -> "再エンコード中..."
-            }
+            savingStepMessage = if (isRotating) "傾き補正中..." else "高速トリム中(色味完全維持)..."
         )
 
         try {
-            val outputFile = trimmer.trim(
-                readPath = readPath,
-                sourceInfo = sourceInfo,
-                startSeconds = state.startSeconds,
-                endSeconds = state.endSeconds,
-                outputExtension = state.extension,
-                mode = mode,
-                angleDegrees = state.angleDegrees
-            )
+            val outputFile = if (isRotating) {
+                rotator.rotateAndTrim(
+                    inputFile = stagedFile,
+                    startSeconds = state.startSeconds,
+                    endSeconds = state.endSeconds,
+                    angleDegrees = state.angleDegrees,
+                    sourceInfo = sourceInfo
+                )
+            } else {
+                trimmer.trim(
+                    readPath = readPath,
+                    sourceInfo = sourceInfo,
+                    startSeconds = state.startSeconds,
+                    endSeconds = state.endSeconds,
+                    outputExtension = state.extension
+                )
+            }
+            // 傾き補正はMedia3 Transformerで常にMP4として書き出される
+            val outputExtension = if (isRotating) "mp4" else state.extension
 
             _uiState.value = _uiState.value.copy(savingStepMessage = "色空間を確認中...")
             val outputInfo = runCatching { probe.probeColorInfo(outputFile.absolutePath) }.getOrNull()
             val colorPreserved = outputInfo != null && sourceInfo.hasSameColorMetadataAs(outputInfo)
 
             _uiState.value = _uiState.value.copy(savingStepMessage = "ギャラリーへ保存中...")
-            val displayName = (state.displayName?.substringBeforeLast('.') ?: "trimmed") + "_trim.${state.extension}"
-            saver.saveToGallery(outputFile, displayName, state.extension)
+            val displayName = (state.displayName?.substringBeforeLast('.') ?: "trimmed") + "_trim.$outputExtension"
+            saver.saveToGallery(outputFile, displayName, outputExtension)
 
             _uiState.value = _uiState.value.copy(
                 isSaving = false,

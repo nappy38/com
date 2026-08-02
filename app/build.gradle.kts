@@ -63,6 +63,12 @@ dependencies {
     implementation("androidx.media3:media3-ui:1.4.1")
     implementation("androidx.media3:media3-common:1.4.1")
 
+    // 傾き補正(回転+クロップ)用。FFmpegKit後継フォークに動画エンコーダが
+    // 一切同梱されておらず再エンコードが不可能だったため、Android標準の
+    // MediaCodecを使うGoogle公式のMedia3 Transformerに切り替える。
+    implementation("androidx.media3:media3-transformer:1.4.1")
+    implementation("androidx.media3:media3-effect:1.4.1")
+
     // FFmpegKit 後継フォーク(公式FFmpegKitは2025年4月に廃止済み)
     // API/パッケージ名は互換の com.arthenica.ffmpegkit.*
     implementation("com.moizhassan.ffmpeg:ffmpeg-kit-16kb:6.0.0")
