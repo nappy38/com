@@ -209,8 +209,12 @@ class VideoStacker(private val context: Context) {
             // 画面座標(上が0)からNDC(上が+1)へ
             val ndcY = 1f - 2f * (centerYPx / outHeight.toFloat())
 
+            // Media3の合成器は、各シーケンスの実ピクセルサイズ(ここではPresentationで
+            // outputWidth×band.heightに揃えてある)を背景キャンバスとの比率で自動的に
+            // スケーリングする。ここでさらに band.height/outHeight を掛けると二重適用になり、
+            // 帯が本来よりずっと小さく縮んでしまう。等倍(1,1)のままでよい。
             return OverlaySettings.Builder()
-                .setScale(1f, band.height.toFloat() / outHeight.toFloat())
+                .setScale(1f, 1f)
                 .setOverlayFrameAnchor(0f, 0f)
                 .setBackgroundFrameAnchor(0f, ndcY)
                 .build()
