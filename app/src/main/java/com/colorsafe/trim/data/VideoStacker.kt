@@ -5,11 +5,16 @@ import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.StatFs
+import androidx.media3.common.C
+import androidx.media3.common.Effect
 import androidx.media3.common.MediaItem
+import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.audio.SpeedProvider
 // Media3 は android.util.Size ではなく独自の Size を使う。取り違えると
 // getOutputSize がインターフェースを実装していない扱いになる。
 import androidx.media3.common.util.Size
 import androidx.media3.effect.Crop
+import androidx.media3.effect.SpeedChangeEffect
 import androidx.media3.effect.OverlaySettings
 import androidx.media3.effect.Presentation
 import androidx.media3.effect.VideoCompositorSettings
@@ -71,9 +76,15 @@ class VideoStacker(private val context: Context) {
         val bands = StackGeometry.bands(outputHeight, layout)
 
         val metas = withContext(Dispatchers.IO) { inputs.map { readMeta(it) } }
+
+        // 速度をかけた後の実際の長さ。倍速なら半分になる
+        val effectiveMs = metas.mapIndexed { index, meta ->
+            (meta.durationMs / adjusts[index].speed.coerceAtLeast(0.1f)).toLong()
+        }
+
         // 指定がなければ一番短い素材に合わせる。指定がある場合、そこに届かない
         // 素材は末尾を最後の絵で埋めて、3本とも同じ長さに揃える。
-        val targetMs = (maxDurationMs ?: metas.minOf { it.durationMs }).coerceAtLeast(200L)
+        val targetMs = (maxDurationMs ?: effectiveMs.min()).coerceAtLeast(200L)
 
         withContext(Dispatchers.IO) {
             ensureEnoughStorage(estimatedOutputBytes(outputWidth, targetMs))
@@ -86,8 +97,12 @@ class VideoStacker(private val context: Context) {
             val band = bands[index]
             val meta = metas[index]
 
-            val clipMs = minOf(meta.durationMs, targetMs).coerceAtLeast(100L)
-            val padMs = targetMs - clipMs
+            val speed = adjusts[index].speed.coerceIn(0.1f, 4f)
+            // 目標の長さを埋めるのに必要な「元の尺」。倍速なら2倍必要になる
+            val neededSourceMs = (targetMs * speed).toLong()
+            val clipMs = minOf(meta.durationMs, neededSourceMs).coerceAtLeast(100L)
+            // 速度をかけた後の長さ。ここが目標に届かない分を静止画で埋める
+            val padMs = targetMs - (clipMs / speed).toLong()
 
             val mediaItem = MediaItem.Builder()
                 .setUri(Uri.fromFile(file))
@@ -113,7 +128,8 @@ class VideoStacker(private val context: Context) {
             val top = 1f - (rect.cy - rect.h / 2f) * 2f
             val bottom = 1f - (rect.cy + rect.h / 2f) * 2f
 
-            val effects = listOf(
+            // 静止画の継ぎ足しには速度をかけない。尺を直接指定しているため
+            val stillEffects: List<Effect> = listOf(
                 Crop(left, right, bottom, top),
                 // Crop後は帯と同じ縦横比になっているので、引き伸ばさずぴったり収まる
                 Presentation.createForWidthAndHeight(
@@ -123,9 +139,26 @@ class VideoStacker(private val context: Context) {
                 )
             )
 
+            val keepAudio = index == audioPanelIndex
+            // 音を残すパネルだけは、音も一緒に伸び縮みさせる必要がある。
+            // 映像だけの SpeedChangeEffect では音とズレる。
+            val speedPair = if (speed != 1f && keepAudio) {
+                Effects.createExperimentalSpeedChangingEffect(constantSpeed(speed))
+            } else {
+                null
+            }
+
+            val videoEffects = when {
+                speedPair != null -> stillEffects + speedPair.second
+                speed != 1f -> stillEffects + SpeedChangeEffect(speed)
+                else -> stillEffects
+            }
+            val audioProcessors: List<AudioProcessor> =
+                if (speedPair != null) listOf(speedPair.first) else emptyList()
+
             val edited = EditedMediaItem.Builder(mediaItem)
-                .setRemoveAudio(index != audioPanelIndex)
-                .setEffects(Effects(emptyList(), effects))
+                .setRemoveAudio(!keepAudio)
+                .setEffects(Effects(audioProcessors, videoEffects))
                 .build()
 
             // 指定の長さに届かない素材は、最後のコマを静止画として継ぎ足す。
@@ -145,7 +178,7 @@ class VideoStacker(private val context: Context) {
                 )
                     .setDurationUs(padMs * 1000L)
                     .setFrameRate(30)
-                    .setEffects(Effects(emptyList(), effects))
+                    .setEffects(Effects(emptyList(), stillEffects))
                     .build()
                 EditedMediaItemSequence(edited, still)
             }
@@ -252,6 +285,12 @@ class VideoStacker(private val context: Context) {
                 .setBackgroundFrameAnchor(0f, ndcY)
                 .build()
         }
+    }
+
+    /** 常に同じ速度を返す SpeedProvider。速度は途中で変えない */
+    private fun constantSpeed(speed: Float): SpeedProvider = object : SpeedProvider {
+        override fun getSpeed(timeUs: Long): Float = speed
+        override fun getNextSpeedChangeTimeUs(timeUs: Long): Long = C.TIME_UNSET
     }
 
     /**

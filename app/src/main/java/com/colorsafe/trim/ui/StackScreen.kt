@@ -50,6 +50,7 @@ fun StackScreen(
     onPickVideoClick: (Int) -> Unit,
     onOffsetChanged: (Int, Float) -> Unit,
     onZoomChanged: (Int, Float) -> Unit,
+    onSpeedChanged: (Int, Float) -> Unit,
     onLayoutChanged: (StackLayout) -> Unit,
     onAudioPanelChanged: (Int) -> Unit,
     onOutputWidthChanged: (Int) -> Unit,
@@ -186,6 +187,26 @@ fun StackScreen(
                         enabled = !state.isSaving,
                         onValueChange = { onZoomChanged(index, it) }
                     )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "はやさ",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.width(56.dp)
+                        )
+                        listOf(0.5f to "0.5x", 1f to "1x", 1.5f to "1.5x", 2f to "2x")
+                            .forEach { (value, label) ->
+                                FilterChip(
+                                    selected = state.panels[index].adjust.speed == value,
+                                    onClick = { onSpeedChanged(index, value) },
+                                    enabled = !state.isSaving,
+                                    label = { Text(label) }
+                                )
+                            }
+                    }
                 }
             }
 

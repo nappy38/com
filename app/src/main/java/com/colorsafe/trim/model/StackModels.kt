@@ -17,7 +17,9 @@ enum class StackLayout(val label: String, val ratios: List<Float>) {
  */
 data class PanelAdjust(
     val offsetY: Float = 0f,
-    val zoom: Float = 1f
+    val zoom: Float = 1f,
+    /** 再生速度。1.0が等速、0.5でゆっくり、2.0で倍速 */
+    val speed: Float = 1f
 )
 
 /**

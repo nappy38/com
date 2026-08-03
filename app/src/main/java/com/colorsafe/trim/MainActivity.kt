@@ -108,6 +108,7 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onOffsetChanged = stackViewModel::onOffsetChanged,
                                     onZoomChanged = stackViewModel::onZoomChanged,
+                                    onSpeedChanged = stackViewModel::onSpeedChanged,
                                     onLayoutChanged = stackViewModel::onLayoutChanged,
                                     onAudioPanelChanged = stackViewModel::onAudioPanelChanged,
                                     onOutputWidthChanged = stackViewModel::onOutputWidthChanged,

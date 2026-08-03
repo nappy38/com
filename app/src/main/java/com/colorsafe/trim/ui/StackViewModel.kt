@@ -87,6 +87,10 @@ class StackViewModel(application: Application) : AndroidViewModel(application) {
         updateAdjust(index) { it.copy(zoom = value) }
     }
 
+    fun onSpeedChanged(index: Int, value: Float) {
+        updateAdjust(index) { it.copy(speed = value) }
+    }
+
     fun onLayoutChanged(layout: StackLayout) {
         _uiState.value = _uiState.value.copy(layout = layout)
         refreshPreview()
