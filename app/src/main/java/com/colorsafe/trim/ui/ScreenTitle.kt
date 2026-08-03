@@ -20,6 +20,28 @@ import androidx.compose.ui.unit.em
  * 詰まって見えないよう、上下にたっぷり余白を取り、字間を開ける。
  * 水彩の背景に載せるので、太字で押し出すより細く広げた方が馴染む。
  */
+/**
+ * 作業中に出す小さい見出し。
+ * 大きい見出しは場所を取りすぎるが、何も無いと今どこにいるか迷う。
+ */
+@Composable
+fun ScreenTitleCompact(
+    title: String,
+    modifier: Modifier = Modifier
+) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Light,
+        letterSpacing = 0.2.em,
+        textAlign = TextAlign.Center,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 14.dp, bottom = 6.dp)
+    )
+}
+
 @Composable
 fun ScreenTitle(
     title: String,

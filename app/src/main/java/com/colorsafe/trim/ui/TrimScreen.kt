@@ -69,8 +69,11 @@ fun TrimScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
-            // 動画を開いたら見出しは引っ込める。ここが空くぶんプレビューが広がる
-            if (!state.hasVideo) {
+            // 動画を開いたら見出しを小さくする。消すと今どこにいるか迷うが、
+            // 大きいままだとプレビューを圧迫する
+            if (state.hasVideo) {
+                ScreenTitleCompact("トリム")
+            } else {
                 AppHeader()
             }
 

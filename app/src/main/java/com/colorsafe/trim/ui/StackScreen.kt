@@ -201,8 +201,7 @@ fun StackScreen(
                                 0.5f to "0.5x",
                                 0.7f to "0.7x",
                                 1f to "1x",
-                                1.2f to "1.2x",
-                                1.5f to "1.5x"
+                                1.2f to "1.2x"
                             ).forEach { (value, label) ->
                                 FilterChip(
                                     selected = state.panels[index].adjust.speed == value,
@@ -257,8 +256,7 @@ fun StackScreen(
                     null to "そのまま",
                     4.0 to "4秒",
                     5.0 to "5秒",
-                    6.0 to "6秒",
-                    8.0 to "8秒"
+                    6.0 to "6秒"
                 ).forEach { (value, label) ->
                     FilterChip(
                         selected = state.targetSeconds == value,
