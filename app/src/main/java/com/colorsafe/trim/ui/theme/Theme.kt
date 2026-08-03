@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -51,11 +50,11 @@ fun ColorSafeTrimTheme(
 }
 
 /**
- * 背景。紙の色の上に、さやさん自作の水彩画を下から立ち上げる。
+ * 背景。紙の色の上に、さやさん自作の水彩画を画面いっぱいに敷く。
  *
- * 画面いっぱいに引き伸ばさず、幅に合わせて下端に置く。縦長のスマホでは
- * 上側に紙の色が残り、そこに文字が乗るので読みやすさを損なわない。
- * 引き伸ばすと絵が間延びするうえ、文字が枝と重なって読みづらくなる。
+ * 縦横比は保ったまま画面を覆う(Crop)。縦長のスマホでは絵の左右が
+ * はみ出すので、枝のある左端を残す向きで寄せる。引き伸ばして
+ * 縦横比を崩すことはしない。水彩は形が歪むとすぐ嘘っぽくなる。
  */
 @Composable
 fun WatercolorBackground(
@@ -66,12 +65,11 @@ fun WatercolorBackground(
         Image(
             painter = painterResource(R.drawable.bg_watercolor),
             contentDescription = null,
-            contentScale = ContentScale.FillWidth,
+            contentScale = ContentScale.Crop,
+            alignment = Alignment.BottomStart,
             // 文字の下に敷くので、原画より少し引く
             alpha = 0.8f,
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
+            modifier = Modifier.matchParentSize()
         )
         content()
     }
