@@ -6,7 +6,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -54,9 +57,17 @@ fun VideoPreview(
         }
     }
 
+    var didInitialSeek by remember(uri) { mutableStateOf(false) }
+
     LaunchedEffect(exoPlayer, seekToSeconds) {
         if (seekToSeconds != null) {
             exoPlayer.seekTo((seekToSeconds * 1000).toLong())
+            didInitialSeek = true
+        } else if (!didInitialSeek) {
+            // 動画の先頭は暗転していたり露出が合っていないことが多く、
+            // 0のままだと真っ暗な絵を見せてしまう。少しだけ進めて開く。
+            exoPlayer.seekTo(400L)
+            didInitialSeek = true
         }
     }
 
@@ -65,6 +76,18 @@ fun VideoPreview(
         factory = { ctx ->
             (LayoutInflater.from(ctx).inflate(R.layout.view_player, null) as PlayerView).apply {
                 player = exoPlayer
+
+                // 再生ボタンやシークバーが絵に被って中身を確認しづらいので、
+                // 既定では出さない。画面をタップしたときだけ出す。
+                setControllerAutoShow(false)
+                setControllerShowTimeoutMs(1500)
+                setControllerHideOnTouch(true)
+                hideController()
+
+                // 最初のフレームが描かれるまで黒い板が全面を覆う。
+                // これが「開いても暗いまま」の正体なので外す。
+                setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
+                setKeepContentOnPlayerReset(true)
             }
         },
         update = { playerView ->

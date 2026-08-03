@@ -190,7 +190,8 @@ private fun LoadedContent(
                 .fillMaxWidth()
                 .weight(1f)
                 .clip(RoundedCornerShape(16.dp)),
-            color = Color.Black
+            // 黒い枠は画面全体を暗く見せる。動画の余白は紙の色で受ける
+            color = MaterialTheme.colorScheme.surfaceVariant
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 if (state.videoUri != null) {
