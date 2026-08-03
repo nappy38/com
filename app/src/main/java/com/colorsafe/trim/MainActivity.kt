@@ -113,6 +113,7 @@ class MainActivity : ComponentActivity() {
                                     onAudioPanelChanged = stackViewModel::onAudioPanelChanged,
                                     onOutputWidthChanged = stackViewModel::onOutputWidthChanged,
                                     onTargetSecondsChanged = stackViewModel::onTargetSecondsChanged,
+                                    onColorBoostChanged = stackViewModel::onColorBoostChanged,
                                     onPreviewPositionChanged = stackViewModel::onPreviewPositionChanged,
                                     onCreateClicked = stackViewModel::onCreateClicked,
                                     onDismissError = stackViewModel::dismissError,

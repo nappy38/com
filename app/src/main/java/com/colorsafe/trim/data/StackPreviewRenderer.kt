@@ -3,9 +3,12 @@ package com.colorsafe.trim.data
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.graphics.Rect
 import android.media.MediaMetadataRetriever
+import com.colorsafe.trim.model.ColorBoost
 import com.colorsafe.trim.model.PanelAdjust
 import com.colorsafe.trim.model.StackGeometry
 import com.colorsafe.trim.model.StackLayout
@@ -40,6 +43,31 @@ class StackPreviewRenderer {
     }
 
     /**
+     * 書き出し側の HslAdjustment + Contrast と同じ変化を、画面の絵にも当てる。
+     * 書き出してから色が違うと気づくのでは、プレビューの意味がない。
+     */
+    private val boostPaint = Paint().apply {
+        isFilterBitmap = true
+        isAntiAlias = true
+        val matrix = ColorMatrix().apply {
+            setSaturation(1f + ColorBoost.SATURATION / 100f)
+        }
+        val factor = (1f + ColorBoost.CONTRAST) / (1.0001f - ColorBoost.CONTRAST)
+        val lift = ColorBoost.LIGHTNESS * 2.55f
+        matrix.postConcat(
+            ColorMatrix(
+                floatArrayOf(
+                    factor, 0f, 0f, 0f, lift,
+                    0f, factor, 0f, 0f, lift,
+                    0f, 0f, factor, 0f, lift,
+                    0f, 0f, 0f, 1f, 0f
+                )
+            )
+        )
+        colorFilter = ColorMatrixColorFilter(matrix)
+    }
+
+    /**
      * @param files 上・中・下の順。未選択は null
      * @param positionFraction 0.0〜1.0。どの時点のフレームを見るか
      * @param previewWidth 生成する画像の幅(px)。高さは16:9で決まる
@@ -49,8 +77,10 @@ class StackPreviewRenderer {
         adjusts: List<PanelAdjust>,
         layout: StackLayout,
         positionFraction: Float,
+        colorBoost: Boolean = false,
         previewWidth: Int = 360
     ): Bitmap = withContext(Dispatchers.IO) {
+        val paint = if (colorBoost) boostPaint else bitmapPaint
         val width = previewWidth
         val height = previewWidth * 16 / 9
         val bands = StackGeometry.bands(height, layout)
@@ -90,7 +120,7 @@ class StackPreviewRenderer {
                 ((rect.cy + rect.h / 2f) * frame.height).toInt().coerceIn(1, frame.height)
             )
 
-            canvas.drawBitmap(frame, src, dst, bitmapPaint)
+            canvas.drawBitmap(frame, src, dst, paint)
         }
 
         // 帯の境目をうっすら見せて、どこで切れているか分かるようにする

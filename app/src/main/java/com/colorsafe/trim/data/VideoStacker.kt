@@ -14,7 +14,9 @@ import androidx.media3.common.audio.SpeedProvider
 // Media3 は android.util.Size ではなく独自の Size を使う。取り違えると
 // getOutputSize がインターフェースを実装していない扱いになる。
 import androidx.media3.common.util.Size
+import androidx.media3.effect.Contrast
 import androidx.media3.effect.Crop
+import androidx.media3.effect.HslAdjustment
 import androidx.media3.effect.SpeedChangeEffect
 import androidx.media3.effect.OverlaySettings
 import androidx.media3.effect.Presentation
@@ -27,6 +29,7 @@ import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.ProgressHolder
 import androidx.media3.transformer.Transformer
+import com.colorsafe.trim.model.ColorBoost
 import com.colorsafe.trim.model.PanelAdjust
 import com.colorsafe.trim.model.StackGeometry
 import com.colorsafe.trim.model.StackLayout
@@ -69,6 +72,7 @@ class VideoStacker(private val context: Context) {
         audioPanelIndex: Int,
         outputWidth: Int,
         maxDurationMs: Long? = null,
+        colorBoost: Boolean = false,
         onProgress: (Float) -> Unit = {}
     ): File = withContext(Dispatchers.Main) {
         require(inputs.size == 3) { "3分割には動画が3本必要です" }
@@ -129,6 +133,20 @@ class VideoStacker(private val context: Context) {
             val top = 1f - (rect.cy - rect.h / 2f) * 2f
             val bottom = 1f - (rect.cy + rect.h / 2f) * 2f
 
+            // 色味を持ち上げるのは切り出しと縮小のあと。先にかけると
+            // 捨てる部分まで計算することになる
+            val boost: List<Effect> = if (colorBoost) {
+                listOf(
+                    HslAdjustment.Builder()
+                        .adjustSaturation(ColorBoost.SATURATION)
+                        .adjustLightness(ColorBoost.LIGHTNESS)
+                        .build(),
+                    Contrast(ColorBoost.CONTRAST)
+                )
+            } else {
+                emptyList()
+            }
+
             // 静止画の継ぎ足しには速度をかけない。尺を直接指定しているため
             val stillEffects: List<Effect> = listOf(
                 Crop(left, right, bottom, top),
@@ -138,7 +156,7 @@ class VideoStacker(private val context: Context) {
                     band.height,
                     Presentation.LAYOUT_SCALE_TO_FIT
                 )
-            )
+            ) + boost
 
             val keepAudio = index == audioPanelIndex
             // 音を残すパネルだけは、音も一緒に伸び縮みさせる必要がある。

@@ -22,6 +22,8 @@ data class StackUiState(
     val outputWidth: Int = 1080,
     /** 出来上がりの長さの指定。null なら一番短い素材に合わせる */
     val targetSeconds: Double? = null,
+    /** 色味を持ち上げるか。既定は素材そのまま */
+    val colorBoost: Boolean = false,
     /**
      * プレビューで見ている位置(0.0〜1.0)。
      * 冒頭は暗転していたりカメラの露出が合っていないことが多く、

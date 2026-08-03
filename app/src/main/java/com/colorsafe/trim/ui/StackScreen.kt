@@ -58,6 +58,7 @@ fun StackScreen(
     onAudioPanelChanged: (Int) -> Unit,
     onOutputWidthChanged: (Int) -> Unit,
     onTargetSecondsChanged: (Double?) -> Unit,
+    onColorBoostChanged: (Boolean) -> Unit,
     onPreviewPositionChanged: (Float) -> Unit,
     onCreateClicked: () -> Unit,
     onDismissError: () -> Unit,
@@ -226,6 +227,23 @@ fun StackScreen(
                         label = { Text(label) }
                     )
                 }
+            }
+
+            // ---------- 色味 ----------
+            SectionLabel("いろみ")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = !state.colorBoost,
+                    onClick = { onColorBoostChanged(false) },
+                    enabled = !state.isSaving,
+                    label = { Text("そのまま") }
+                )
+                FilterChip(
+                    selected = state.colorBoost,
+                    onClick = { onColorBoostChanged(true) },
+                    enabled = !state.isSaving,
+                    label = { Text("こく") }
+                )
             }
 
             // ---------- 長さ ----------

@@ -109,6 +109,11 @@ class StackViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = _uiState.value.copy(targetSeconds = seconds)
     }
 
+    fun onColorBoostChanged(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(colorBoost = enabled)
+        refreshPreview()
+    }
+
     fun onPreviewPositionChanged(fraction: Float) {
         _uiState.value = _uiState.value.copy(previewPosition = fraction.coerceIn(0f, 1f))
         refreshPreview()
@@ -138,7 +143,8 @@ class StackViewModel(application: Application) : AndroidViewModel(application) {
                     layout = state.layout,
                     audioPanelIndex = state.audioPanelIndex,
                     outputWidth = state.outputWidth,
-                    maxDurationMs = state.targetSeconds?.let { (it * 1000).toLong() }
+                    maxDurationMs = state.targetSeconds?.let { (it * 1000).toLong() },
+                    colorBoost = state.colorBoost
                 ) { progress ->
                     _uiState.value = _uiState.value.copy(progress = progress)
                 }
@@ -206,7 +212,8 @@ class StackViewModel(application: Application) : AndroidViewModel(application) {
                     files = state.panels.map { it.file },
                     adjusts = state.panels.map { it.adjust },
                     layout = state.layout,
-                    positionFraction = state.previewPosition
+                    positionFraction = state.previewPosition,
+                    colorBoost = state.colorBoost
                 )
             }.onSuccess { bitmap ->
                 _uiState.value = _uiState.value.copy(previewBitmap = bitmap)

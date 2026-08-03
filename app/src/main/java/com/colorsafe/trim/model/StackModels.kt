@@ -23,6 +23,23 @@ data class PanelAdjust(
 )
 
 /**
+ * 色味を持ち上げるフィルターの強さ。
+ *
+ * 参考にしたリールの見え方（緑が濃く、締まりのある絵）に寄せた1種類だけ。
+ * 数を増やすとCapCutの劣化版になるので、増やさない。
+ */
+object ColorBoost {
+    /** 彩度の足し幅。-100〜100 */
+    const val SATURATION = 26f
+
+    /** コントラストの足し幅。-1〜1 */
+    const val CONTRAST = 0.10f
+
+    /** 明るさの足し幅。-100〜100 */
+    const val LIGHTNESS = 2f
+}
+
+/**
  * 帯の位置と、元動画のどこを切り出すかの計算。
  *
  * 書き出し(Media3 Transformer)と画面プレビュー(Bitmap)の両方がここを使う。
