@@ -150,9 +150,10 @@ private fun AppHeader() {
 
 @Composable
 private fun EmptyState(onPickVideoClick: () -> Unit) {
-    // 何も置かれていない画面なので、ここだけは絵を見せる
-    Box(contentAlignment = Alignment.Center) {
-        WatercolorBloom(modifier = Modifier.size(320.dp))
+    // 何も置かれていない画面なので、ここだけは絵を大きく見せる。
+    // 固定サイズだと狭い端末ではみ出すので、空いている領域いっぱいに描く。
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        WatercolorBloom(modifier = Modifier.fillMaxSize())
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(

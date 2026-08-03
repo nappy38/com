@@ -22,10 +22,10 @@ val AppInkSoft = Color(0xFF8D7B7C)    // 補足の文字
 val AppLine = Color(0xFFE8DAD6)       // 罫線
 val AppDanger = Color(0xFFB2465A)     // エラー。原色の赤は水彩から浮く
 
-/** 背景に落とすにじみ。薄く重ねて紙のムラに見せる */
-val AppBlushWash = Color(0x3CE7A79E)
-val AppSageWash = Color(0x2E7F9A94)
-val AppPeachWash = Color(0x30EFC2A4)
+/** 背景に落とすにじみ。重ねて紙のムラに見せる */
+val AppBlushWash = Color(0x55E7A79E)
+val AppSageWash = Color(0x427F9A94)
+val AppPeachWash = Color(0x46EFC2A4)
 
 // 旧テーマ(白ベース)の名残。他から参照されていれば残す必要がある。
 val AppWhite = Color(0xFFFFFFFF)
