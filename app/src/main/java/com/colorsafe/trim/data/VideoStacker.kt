@@ -8,6 +8,7 @@ import android.os.StatFs
 import androidx.media3.common.C
 import androidx.media3.common.Effect
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.SpeedProvider
 // Media3 は android.util.Size ではなく独自の Size を使う。取り違えると
@@ -174,7 +175,12 @@ class VideoStacker(private val context: Context) {
             } else {
                 freezeFiles += freeze
                 val still = EditedMediaItem.Builder(
-                    MediaItem.fromUri(Uri.fromFile(freeze))
+                    // 拡張子からも判定されるが、画像として扱われないと
+                    // 動画の読み込み側へ回されて失敗するので明示する
+                    MediaItem.Builder()
+                        .setUri(Uri.fromFile(freeze))
+                        .setMimeType(MimeTypes.IMAGE_JPEG)
+                        .build()
                 )
                     .setDurationUs(padMs * 1000L)
                     .setFrameRate(30)
@@ -224,9 +230,7 @@ class VideoStacker(private val context: Context) {
                                     cont.resumeWith(
                                         Result.failure(
                                             TrimException(
-                                                TrimError.FfmpegFailure(
-                                                    exportException.message ?: "3分割の書き出しに失敗しました"
-                                                )
+                                                TrimError.FfmpegFailure(describe(exportException))
                                             )
                                         )
                                     )
@@ -285,6 +289,29 @@ class VideoStacker(private val context: Context) {
                 .setBackgroundFrameAnchor(0f, ndcY)
                 .build()
         }
+    }
+
+    /**
+     * 失敗の中身を1行にまとめる。
+     *
+     * Media3 の message は「Asset loader error」のように種類しか出さず、
+     * 本当の理由は cause の奥にある。原因を追えるよう連鎖ごと出す。
+     */
+    private fun describe(e: ExportException): String {
+        val sb = StringBuilder()
+        sb.append(e.message ?: "書き出しに失敗しました")
+        sb.append(" [code=").append(e.errorCode).append("]")
+        var cause: Throwable? = e.cause
+        var depth = 0
+        while (cause != null && depth < 4) {
+            sb.append(" / ")
+                .append(cause.javaClass.simpleName)
+                .append(": ")
+                .append(cause.message ?: "-")
+            cause = cause.cause
+            depth++
+        }
+        return sb.toString()
     }
 
     /** 常に同じ速度を返す SpeedProvider。速度は途中で変えない */

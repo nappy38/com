@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -306,7 +307,18 @@ fun StackScreen(
             onDismissRequest = onDismissError,
             confirmButton = { TextButton(onClick = onDismissError) { Text("閉じる") } },
             title = { Text("エラー") },
-            text = { Text(state.errorMessage) }
+            text = {
+                // 原因を知らせてもらう必要があるので、長押しでコピーできるようにする
+                SelectionContainer {
+                    Text(
+                        text = state.errorMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier
+                            .heightIn(max = 320.dp)
+                            .verticalScroll(rememberScrollState())
+                    )
+                }
+            }
         )
     }
 
