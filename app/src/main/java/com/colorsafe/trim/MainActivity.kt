@@ -63,9 +63,11 @@ class MainActivity : ComponentActivity() {
                     ActivityResultContracts.OpenDocument()
                 ) { uri -> uri?.let { viewModel.onVideoPicked(it) } }
 
+                // 3分割は写真も置ける。動画と写真の両方を選べるようにする
                 val stackPickerLauncher = rememberLauncherForActivityResult(
                     ActivityResultContracts.OpenDocument()
                 ) { uri -> uri?.let { stackViewModel.onVideoPicked(pendingPanelIndex, it) } }
+                val stackPickerTypes = arrayOf("video/*", "image/*")
 
                 val readPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     Manifest.permission.READ_MEDIA_VIDEO
@@ -78,7 +80,7 @@ class MainActivity : ComponentActivity() {
                 ) { granted ->
                     if (granted) {
                         if (mode == MODE_STACK) {
-                            stackPickerLauncher.launch(arrayOf("video/*"))
+                            stackPickerLauncher.launch(stackPickerTypes)
                         } else {
                             documentPickerLauncher.launch(arrayOf("video/*"))
                         }
@@ -101,7 +103,7 @@ class MainActivity : ComponentActivity() {
                                     onPickVideoClick = { index ->
                                         pendingPanelIndex = index
                                         if (hasReadPermission()) {
-                                            stackPickerLauncher.launch(arrayOf("video/*"))
+                                            stackPickerLauncher.launch(stackPickerTypes)
                                         } else {
                                             permissionLauncher.launch(readPermission)
                                         }

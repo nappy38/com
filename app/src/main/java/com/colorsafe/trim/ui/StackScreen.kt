@@ -182,6 +182,8 @@ fun StackScreen(
                         enabled = !state.isSaving,
                         onValueChange = { onZoomChanged(index, it) }
                     )
+                    // 写真は動かないので、速度の選択は出さない
+                    if (!state.panels[index].isImage) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -211,6 +213,7 @@ fun StackScreen(
                                 )
                             }
                         }
+                    }
                     }
                 }
             }
@@ -415,6 +418,7 @@ private fun PanelSlotRow(
                 text = when {
                     isLoading -> "読み込み中…"
                     slot.file == null -> "まだ選んでいません"
+                    slot.isImage -> "${slot.displayName}  写真"
                     else -> "${slot.displayName}  %.1fs".format(slot.durationSeconds)
                 },
                 style = MaterialTheme.typography.bodySmall,

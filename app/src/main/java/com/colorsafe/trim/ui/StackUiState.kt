@@ -11,6 +11,8 @@ data class PanelSlot(
     val file: File? = null,
     val displayName: String? = null,
     val durationSeconds: Double = 0.0,
+    /** 写真なら true。最初から最後まで動かない */
+    val isImage: Boolean = false,
     val adjust: PanelAdjust = PanelAdjust()
 )
 
@@ -42,13 +44,15 @@ data class StackUiState(
     val filledCount: Int get() = panels.count { it.file != null }
     val isReady: Boolean get() = filledCount == 3
 
-    /** 一番短い素材の長さ。ここを超える尺は作れない */
+    /** 一番短い動画の長さ。写真は長さを持たないので数えない */
     val sourceSeconds: Double
-        get() = panels.filter { it.file != null }.minOfOrNull { it.durationSeconds } ?: 0.0
+        get() = panels
+            .filter { it.file != null && !it.isImage }
+            .minOfOrNull { it.durationSeconds } ?: 0.0
 
-    /** 出来上がりの長さ。指定があればその長さちょうどになる */
+    /** 出来上がりの長さ。指定があればその長さちょうどになる。全部写真なら4秒 */
     val outputSeconds: Double
-        get() = targetSeconds ?: sourceSeconds
+        get() = targetSeconds ?: sourceSeconds.takeIf { it > 0.0 } ?: 4.0
 
     /** 指定の長さに足りず、短い素材を最後の絵で止めて埋める状態か */
     val isPadded: Boolean

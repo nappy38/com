@@ -2,6 +2,8 @@ package com.colorsafe.trim.data
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.media.ExifInterface
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.StatFs
@@ -67,6 +69,7 @@ class VideoStacker(private val context: Context) {
      */
     suspend fun stack(
         inputs: List<File>,
+        isImages: List<Boolean> = List(inputs.size) { false },
         adjusts: List<PanelAdjust>,
         layout: StackLayout,
         audioPanelIndex: Int,
@@ -75,21 +78,31 @@ class VideoStacker(private val context: Context) {
         colorBoost: Boolean = false,
         onProgress: (Float) -> Unit = {}
     ): File = withContext(Dispatchers.Main) {
-        require(inputs.size == 3) { "3分割には動画が3本必要です" }
+        require(inputs.size == 3) { "3分割には素材が3つ必要です" }
 
         val outputHeight = outputWidth * 16 / 9
         val bands = StackGeometry.bands(outputHeight, layout)
 
-        val metas = withContext(Dispatchers.IO) { inputs.map { readMeta(it) } }
-
-        // 速度をかけた後の実際の長さ。倍速なら半分になる
-        val effectiveMs = metas.mapIndexed { index, meta ->
-            (meta.durationMs / adjusts[index].speed.coerceAtLeast(0.1f)).toLong()
+        val metas = withContext(Dispatchers.IO) {
+            inputs.mapIndexed { index, file ->
+                if (isImages.getOrElse(index) { false }) readImageMeta(file) else readMeta(file)
+            }
         }
 
-        // 指定がなければ一番短い素材に合わせる。指定がある場合、そこに届かない
-        // 素材は末尾を最後の絵で埋めて、3本とも同じ長さに揃える。
-        val targetMs = (maxDurationMs ?: effectiveMs.min()).coerceAtLeast(200L)
+        // 速度をかけた後の実際の長さ。倍速なら半分になる。
+        // 写真は長さを持たないので、尺の計算から外す。
+        val effectiveMs = metas.mapIndexed { index, meta ->
+            if (isImages.getOrElse(index) { false }) {
+                null
+            } else {
+                (meta.durationMs / adjusts[index].speed.coerceAtLeast(0.1f)).toLong()
+            }
+        }
+
+        // 指定がなければ一番短い動画に合わせる。全部写真なら基準が無いので4秒。
+        // 指定がある場合、そこに届かない動画は末尾を最後の絵で埋めて揃える。
+        val autoMs = effectiveMs.filterNotNull().minOrNull() ?: 4000L
+        val targetMs = (maxDurationMs ?: autoMs).coerceAtLeast(200L)
 
         withContext(Dispatchers.IO) {
             ensureEnoughStorage(estimatedOutputBytes(outputWidth, targetMs))
@@ -101,6 +114,7 @@ class VideoStacker(private val context: Context) {
         val sequences = inputs.mapIndexed { index, file ->
             val band = bands[index]
             val meta = metas[index]
+            val isImage = isImages.getOrElse(index) { false }
 
             val speed = adjusts[index].speed.coerceIn(0.1f, 4f)
             // 目標の長さを埋めるのに必要な「元の尺」。倍速なら2倍必要になる
@@ -158,6 +172,22 @@ class VideoStacker(private val context: Context) {
                 )
             ) + boost
 
+            // 写真は最初から最後まで動かない。尺を直接与えるだけで済む
+            if (isImage) {
+                return@mapIndexed EditedMediaItemSequence(
+                    EditedMediaItem.Builder(
+                        MediaItem.Builder()
+                            .setUri(Uri.fromFile(file))
+                            .setMimeType(imageMimeOf(file))
+                            .build()
+                    )
+                        .setDurationUs(targetMs * 1000L)
+                        .setFrameRate(30)
+                        .setEffects(Effects(emptyList(), stillEffects))
+                        .build()
+                )
+            }
+
             val keepAudio = index == audioPanelIndex
             // 音を残すパネルだけは、音も一緒に伸び縮みさせる必要がある。
             // 映像だけの SpeedChangeEffect では音とズレる。
@@ -211,12 +241,14 @@ class VideoStacker(private val context: Context) {
         val compositionBuilder = Composition.Builder(sequences)
             .setVideoCompositorSettings(BandCompositorSettings(outputWidth, outputHeight, bands))
 
-        // 静止画を継ぎ足すときは全体をSDRに落とす。
-        // スマホのHDR動画にSDRのJPEGを混ぜると、映像処理側が
-        // 「HDR出力なのにSDRが来た」で落ちる(SDR→HDRの変換は無い)。
-        // 落とすのは継ぎ足しがあるときだけで、素材そのままの書き出しは
-        // これまでどおりHDRを保つ。
-        if (freezeFiles.isNotEmpty()) {
+        // 次のいずれかのときは全体をSDRに落とす。素材をそのまま積むだけの
+        // ときは、これまでどおりHDRを保つ。
+        //  - 静止画が混ざる(継ぎ足し・写真)
+        //    HDR動画にSDRの画像を混ぜると「HDR出力なのにSDRが来た」で落ちる
+        //  - 色味を持ち上げる
+        //    HslAdjustment が HDR に対応しておらず「HDR is not yet supported」で落ちる
+        val usesStillImage = freezeFiles.isNotEmpty() || isImages.any { it }
+        if (usesStillImage || colorBoost) {
             compositionBuilder.setHdrMode(
                 Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL
             )
@@ -377,6 +409,45 @@ class VideoStacker(private val context: Context) {
             retriever.release()
         }
     }
+
+    /**
+     * 写真の寸法を読む。中身は展開せず、大きさだけ見る。
+     * 縦で撮った写真は横のまま保存して「回して見せる」印が付いていることが
+     * あるので、その場合は縦横を入れ替える。切り出しの計算がずれるため。
+     */
+    private fun readImageMeta(file: File): Meta {
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(file.absolutePath, options)
+
+        val rotated = try {
+            when (
+                ExifInterface(file.absolutePath)
+                    .getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+            ) {
+                ExifInterface.ORIENTATION_ROTATE_90, ExifInterface.ORIENTATION_ROTATE_270 -> true
+                else -> false
+            }
+        } catch (e: Exception) {
+            false
+        }
+
+        val w = options.outWidth.coerceAtLeast(0)
+        val h = options.outHeight.coerceAtLeast(0)
+        return if (rotated) Meta(h, w, 0L) else Meta(w, h, 0L)
+    }
+
+    /**
+     * 拡張子から画像の種類を決める。
+     * 画像として扱われないと動画の読み込み側へ回されて失敗するため、明示する。
+     */
+    private fun imageMimeOf(file: File): String =
+        when (file.extension.lowercase()) {
+            "png" -> MimeTypes.IMAGE_PNG
+            "webp" -> MimeTypes.IMAGE_WEBP
+            "heic" -> MimeTypes.IMAGE_HEIC
+            "heif" -> MimeTypes.IMAGE_HEIF
+            else -> MimeTypes.IMAGE_JPEG
+        }
 
     private data class Meta(val width: Int, val height: Int, val durationMs: Long)
 

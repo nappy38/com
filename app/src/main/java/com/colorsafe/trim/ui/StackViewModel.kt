@@ -44,16 +44,23 @@ class StackViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value.panels.getOrNull(index)?.file?.delete()
         _uiState.value = _uiState.value.copy(loadingPanelIndex = index, errorMessage = null)
 
+        val isImage = getApplication<Application>().contentResolver
+            .getType(uri)?.startsWith("image/") == true
+
         viewModelScope.launch {
             try {
                 val staged = probe.stageInputFile(uri, extension)
-                val info = probe.probeColorInfo(staged.absolutePath)
+                // 写真に長さは無い。ffprobe にかけても意味がないので飛ばす
+                val duration = if (isImage) 0.0 else probe.probeColorInfo(staged.absolutePath).durationSeconds
 
                 val panels = _uiState.value.panels.toMutableList()
                 panels[index] = panels[index].copy(
                     file = staged,
                     displayName = name,
-                    durationSeconds = info.durationSeconds
+                    durationSeconds = duration,
+                    isImage = isImage,
+                    // 写真に速度は効かない。前の素材の設定を持ち越さない
+                    adjust = panels[index].adjust.copy(speed = 1f)
                 )
 
                 // 描画中の処理を先に止めてからキャッシュを捨てる。逆にすると
@@ -139,6 +146,7 @@ class StackViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val output = stacker.stack(
                     inputs = files,
+                    isImages = state.panels.map { it.isImage },
                     adjusts = state.panels.map { it.adjust },
                     layout = state.layout,
                     audioPanelIndex = state.audioPanelIndex,
@@ -210,6 +218,7 @@ class StackViewModel(application: Application) : AndroidViewModel(application) {
             runCatching {
                 previewRenderer.render(
                     files = state.panels.map { it.file },
+                    isImages = state.panels.map { it.isImage },
                     adjusts = state.panels.map { it.adjust },
                     layout = state.layout,
                     positionFraction = state.previewPosition,

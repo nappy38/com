@@ -1,12 +1,15 @@
 package com.colorsafe.trim.data
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Rect
+import android.media.ExifInterface
 import android.media.MediaMetadataRetriever
 import com.colorsafe.trim.model.ColorBoost
 import com.colorsafe.trim.model.PanelAdjust
@@ -74,6 +77,7 @@ class StackPreviewRenderer {
      */
     suspend fun render(
         files: List<File?>,
+        isImages: List<Boolean> = List(files.size) { false },
         adjusts: List<PanelAdjust>,
         layout: StackLayout,
         positionFraction: Float,
@@ -99,7 +103,11 @@ class StackPreviewRenderer {
                 continue
             }
 
-            val frame = frameOf(file, positionFraction)
+            val frame = if (isImages.getOrElse(index) { false }) {
+                photoOf(file)
+            } else {
+                frameOf(file, positionFraction)
+            }
             if (frame == null) {
                 canvas.drawRect(dst, emptyPaint)
                 continue
@@ -140,6 +148,63 @@ class StackPreviewRenderer {
      */
     fun clear() {
         frameCache.clear()
+    }
+
+    /**
+     * 写真を読む。動画と違って時刻の概念がないので、パスだけを鍵に持ち回す。
+     * 画面に出すだけなので、長辺1600pxまで間引いて読む。
+     */
+    private fun photoOf(file: File): Bitmap? {
+        val key = "photo:${file.absolutePath}"
+        frameCache[key]?.let { return it }
+
+        return try {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(file.absolutePath, bounds)
+
+            var sample = 1
+            val longest = maxOf(bounds.outWidth, bounds.outHeight)
+            while (longest / sample > 1600) sample *= 2
+
+            val decoded = BitmapFactory.decodeFile(
+                file.absolutePath,
+                BitmapFactory.Options().apply { inSampleSize = sample }
+            )
+
+            // 縦で撮った写真は、横のまま保存して「回して見せる」印が付いていることが
+            // ある。BitmapFactory はその印を見ないので、自分で回す
+            val bitmap = decoded?.let { applyExifRotation(file, it) }
+
+            if (bitmap != null) {
+                if (frameCache.size > 24) clear()
+                frameCache[key] = bitmap
+            }
+            bitmap
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun applyExifRotation(file: File, bitmap: Bitmap): Bitmap {
+        val degrees = try {
+            when (
+                ExifInterface(file.absolutePath)
+                    .getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+            ) {
+                ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                else -> 0f
+            }
+        } catch (e: Exception) {
+            0f
+        }
+        if (degrees == 0f) return bitmap
+
+        val matrix = Matrix().apply { postRotate(degrees) }
+        return runCatching {
+            Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        }.getOrDefault(bitmap)
     }
 
     private fun frameOf(file: File, positionFraction: Float): Bitmap? {
