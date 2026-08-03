@@ -20,6 +20,8 @@ data class StackUiState(
     /** 音を採用するパネル。-1 で無音 */
     val audioPanelIndex: Int = 1,
     val outputWidth: Int = 1080,
+    /** 出来上がりの長さの指定。null なら一番短い素材に合わせる */
+    val targetSeconds: Double? = null,
     /**
      * プレビューで見ている位置(0.0〜1.0)。
      * 冒頭は暗転していたりカメラの露出が合っていないことが多く、
@@ -38,9 +40,17 @@ data class StackUiState(
     val filledCount: Int get() = panels.count { it.file != null }
     val isReady: Boolean get() = filledCount == 3
 
-    /** 一番短い素材に合わせるので、それが出来上がりの長さになる */
-    val outputSeconds: Double
+    /** 一番短い素材の長さ。ここを超える尺は作れない */
+    val sourceSeconds: Double
         get() = panels.filter { it.file != null }.minOfOrNull { it.durationSeconds } ?: 0.0
+
+    /** 出来上がりの長さ。指定があればその長さちょうどになる */
+    val outputSeconds: Double
+        get() = targetSeconds ?: sourceSeconds
+
+    /** 指定の長さに足りず、短い素材を最後の絵で止めて埋める状態か */
+    val isPadded: Boolean
+        get() = targetSeconds != null && sourceSeconds > 0.0 && targetSeconds > sourceSeconds
 
     val canSave: Boolean get() = isReady && !isSaving && loadingPanelIndex == null
 }

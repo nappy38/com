@@ -1,6 +1,7 @@
 package com.colorsafe.trim.data
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.StatFs
@@ -61,6 +62,7 @@ class VideoStacker(private val context: Context) {
         layout: StackLayout,
         audioPanelIndex: Int,
         outputWidth: Int,
+        maxDurationMs: Long? = null,
         onProgress: (Float) -> Unit = {}
     ): File = withContext(Dispatchers.Main) {
         require(inputs.size == 3) { "3分割には動画が3本必要です" }
@@ -69,24 +71,30 @@ class VideoStacker(private val context: Context) {
         val bands = StackGeometry.bands(outputHeight, layout)
 
         val metas = withContext(Dispatchers.IO) { inputs.map { readMeta(it) } }
-        val shortestMs = metas.minOf { it.durationMs }.coerceAtLeast(200L)
+        // 指定がなければ一番短い素材に合わせる。指定がある場合、そこに届かない
+        // 素材は末尾を最後の絵で埋めて、3本とも同じ長さに揃える。
+        val targetMs = (maxDurationMs ?: metas.minOf { it.durationMs }).coerceAtLeast(200L)
 
         withContext(Dispatchers.IO) {
-            ensureEnoughStorage(estimatedOutputBytes(outputWidth, shortestMs))
+            ensureEnoughStorage(estimatedOutputBytes(outputWidth, targetMs))
         }
 
         val outputFile = File(context.cacheDir, "colorsafe_stack_${System.currentTimeMillis()}.mp4")
+        val freezeFiles = mutableListOf<File>()
 
         val sequences = inputs.mapIndexed { index, file ->
             val band = bands[index]
             val meta = metas[index]
+
+            val clipMs = minOf(meta.durationMs, targetMs).coerceAtLeast(100L)
+            val padMs = targetMs - clipMs
 
             val mediaItem = MediaItem.Builder()
                 .setUri(Uri.fromFile(file))
                 .setClippingConfiguration(
                     MediaItem.ClippingConfiguration.Builder()
                         .setStartPositionMs(0L)
-                        .setEndPositionMs(shortestMs)
+                        .setEndPositionMs(clipMs)
                         .build()
                 )
                 .build()
@@ -120,7 +128,27 @@ class VideoStacker(private val context: Context) {
                 .setEffects(Effects(emptyList(), effects))
                 .build()
 
-            EditedMediaItemSequence(edited)
+            // 指定の長さに届かない素材は、最後のコマを静止画として継ぎ足す。
+            // ffmpeg の tpad=stop_mode=clone と同じ考え方。
+            val freeze = if (padMs >= 100L) {
+                withContext(Dispatchers.IO) { extractLastFrame(file, clipMs, index) }
+            } else {
+                null
+            }
+
+            if (freeze == null) {
+                EditedMediaItemSequence(edited)
+            } else {
+                freezeFiles += freeze
+                val still = EditedMediaItem.Builder(
+                    MediaItem.fromUri(Uri.fromFile(freeze))
+                )
+                    .setDurationUs(padMs * 1000L)
+                    .setFrameRate(30)
+                    .setEffects(Effects(emptyList(), effects))
+                    .build()
+                EditedMediaItemSequence(edited, still)
+            }
         }
 
         val composition = Composition.Builder(sequences)
@@ -129,6 +157,7 @@ class VideoStacker(private val context: Context) {
 
         var transformer: Transformer? = null
 
+        try {
         coroutineScope {
             val poller = launch {
                 val holder = ProgressHolder()
@@ -182,6 +211,10 @@ class VideoStacker(private val context: Context) {
                 poller.cancel()
             }
         }
+        } finally {
+            // 継ぎ足し用に書き出した静止画は、成功しても失敗しても捨てる
+            freezeFiles.forEach { it.delete() }
+        }
 
         if (!outputFile.exists() || outputFile.length() == 0L) {
             throw TrimException(TrimError.FfmpegFailure("出力ファイルが作成されませんでした"))
@@ -218,6 +251,34 @@ class VideoStacker(private val context: Context) {
                 .setOverlayFrameAnchor(0f, 0f)
                 .setBackgroundFrameAnchor(0f, ndcY)
                 .build()
+        }
+    }
+
+    /**
+     * 指定の長さに足りない素材のために、末尾のコマを静止画として書き出す。
+     * これを尺付きで継ぎ足すと「最後の絵で止まる」動きになる。
+     */
+    private fun extractLastFrame(source: File, clipMs: Long, index: Int): File? {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(source.absolutePath)
+            // ちょうど末尾だとコマが取れないことがあるので少し手前を狙う
+            val atUs = (clipMs - 60L).coerceAtLeast(0L) * 1000L
+            val bitmap = retriever.getFrameAtTime(atUs, MediaMetadataRetriever.OPTION_CLOSEST)
+                ?: retriever.getFrameAtTime(atUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                ?: retriever.getFrameAtTime()
+                ?: return null
+
+            val out = File(
+                context.cacheDir,
+                "colorsafe_freeze_${index}_${System.currentTimeMillis()}.jpg"
+            )
+            out.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+            out
+        } catch (e: Exception) {
+            null
+        } finally {
+            retriever.release()
         }
     }
 

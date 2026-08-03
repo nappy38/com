@@ -111,6 +111,7 @@ class MainActivity : ComponentActivity() {
                                     onLayoutChanged = stackViewModel::onLayoutChanged,
                                     onAudioPanelChanged = stackViewModel::onAudioPanelChanged,
                                     onOutputWidthChanged = stackViewModel::onOutputWidthChanged,
+                                    onTargetSecondsChanged = stackViewModel::onTargetSecondsChanged,
                                     onPreviewPositionChanged = stackViewModel::onPreviewPositionChanged,
                                     onCreateClicked = stackViewModel::onCreateClicked,
                                     onDismissError = stackViewModel::dismissError,

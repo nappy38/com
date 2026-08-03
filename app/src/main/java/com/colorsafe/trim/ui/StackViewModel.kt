@@ -100,6 +100,11 @@ class StackViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = _uiState.value.copy(outputWidth = width)
     }
 
+    /** null で「一番短い素材に合わせる」 */
+    fun onTargetSecondsChanged(seconds: Double?) {
+        _uiState.value = _uiState.value.copy(targetSeconds = seconds)
+    }
+
     fun onPreviewPositionChanged(fraction: Float) {
         _uiState.value = _uiState.value.copy(previewPosition = fraction.coerceIn(0f, 1f))
         refreshPreview()
@@ -128,7 +133,8 @@ class StackViewModel(application: Application) : AndroidViewModel(application) {
                     adjusts = state.panels.map { it.adjust },
                     layout = state.layout,
                     audioPanelIndex = state.audioPanelIndex,
-                    outputWidth = state.outputWidth
+                    outputWidth = state.outputWidth,
+                    maxDurationMs = state.targetSeconds?.let { (it * 1000).toLong() }
                 ) { progress ->
                     _uiState.value = _uiState.value.copy(progress = progress)
                 }

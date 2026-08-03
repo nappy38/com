@@ -53,6 +53,7 @@ fun StackScreen(
     onLayoutChanged: (StackLayout) -> Unit,
     onAudioPanelChanged: (Int) -> Unit,
     onOutputWidthChanged: (Int) -> Unit,
+    onTargetSecondsChanged: (Double?) -> Unit,
     onPreviewPositionChanged: (Float) -> Unit,
     onCreateClicked: () -> Unit,
     onDismissError: () -> Unit,
@@ -199,6 +200,32 @@ fun StackScreen(
                         label = { Text(label) }
                     )
                 }
+            }
+
+            // ---------- 長さ ----------
+            SectionLabel("ながさ")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf<Pair<Double?, String>>(
+                    null to "そのまま",
+                    4.0 to "4秒",
+                    6.0 to "6秒",
+                    8.0 to "8秒"
+                ).forEach { (value, label) ->
+                    FilterChip(
+                        selected = state.targetSeconds == value,
+                        onClick = { onTargetSecondsChanged(value) },
+                        enabled = !state.isSaving,
+                        label = { Text(label) }
+                    )
+                }
+            }
+            if (state.isPadded) {
+                Text(
+                    text = "一番短い素材が%.1f秒なので、足りない分は最後の絵で止めて伸ばします"
+                        .format(state.sourceSeconds),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
 
             // ---------- 書き出し ----------
