@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -39,6 +40,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.colorsafe.trim.R
+import com.colorsafe.trim.ui.theme.WatercolorBloom
 import kotlin.math.roundToInt
 
 @Composable
@@ -148,15 +150,20 @@ private fun AppHeader() {
 
 @Composable
 private fun EmptyState(onPickVideoClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = "動画を選んでください",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = onPickVideoClick) {
-            Text("動画を選択")
+    // 何も置かれていない画面なので、ここだけは絵を見せる
+    Box(contentAlignment = Alignment.Center) {
+        WatercolorBloom(modifier = Modifier.size(320.dp))
+
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "動画を選んでください",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
+            Button(onClick = onPickVideoClick) {
+                Text("動画を選択")
+            }
         }
     }
 }
