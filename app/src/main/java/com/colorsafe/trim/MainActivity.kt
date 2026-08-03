@@ -1,6 +1,7 @@
 package com.colorsafe.trim
 
 import android.Manifest
+import android.app.AlertDialog
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -35,6 +36,9 @@ import com.colorsafe.trim.ui.TrimScreen
 import com.colorsafe.trim.ui.TrimViewModel
 import com.colorsafe.trim.ui.theme.ColorSafeTrimTheme
 import com.colorsafe.trim.ui.theme.WatercolorBackground
+import java.io.File
+import java.io.PrintWriter
+import java.io.StringWriter
 
 private const val MODE_TRIM = 0
 private const val MODE_STACK = 1
@@ -46,6 +50,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // 端末側で落ちても理由が分からないと直しようがない。
+        // 落ちたら記録しておき、次に開いたときに見せる。
+        installCrashReporter()
+        showLastCrashIfAny()
+
         setContent {
             ColorSafeTrimTheme {
                 val context = LocalContext.current
@@ -165,5 +175,44 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    /** 異常終了したとき、その理由をファイルに書き残す */
+    private fun installCrashReporter() {
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, error ->
+            runCatching {
+                val writer = StringWriter()
+                error.printStackTrace(PrintWriter(writer))
+                File(filesDir, CRASH_FILE).writeText(writer.toString())
+            }
+            previous?.uncaughtException(thread, error)
+        }
+    }
+
+    /**
+     * 前回の異常終了を見せる。
+     * Compose を組み立てる前に、素のダイアログで出す。画面の組み立て自体で
+     * 落ちている場合でも、ここまでは必ず動くため。
+     */
+    private fun showLastCrashIfAny() {
+        val file = File(filesDir, CRASH_FILE)
+        if (!file.exists()) return
+
+        val text = runCatching { file.readText() }.getOrDefault("")
+        file.delete()
+        if (text.isBlank()) return
+
+        runCatching {
+            AlertDialog.Builder(this)
+                .setTitle("前回、異常終了しました")
+                .setMessage(text.take(4000))
+                .setPositiveButton("閉じる", null)
+                .show()
+        }
+    }
+
+    private companion object {
+        const val CRASH_FILE = "last_crash.txt"
     }
 }

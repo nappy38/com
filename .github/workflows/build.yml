@@ -30,6 +30,14 @@ jobs:
         with:
           gradle-version: 8.9
 
+      # デバッグ用の署名鍵は毎回作り直されると署名が変わり、端末が
+      # 上書きインストールを「内部エラー」で拒否する。鍵を持ち回して固定する。
+      - name: Keep the debug signing key stable
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: debug-keystore-v1
+
       - name: Build debug APK
         run: |
           set -o pipefail
