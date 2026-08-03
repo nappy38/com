@@ -190,9 +190,21 @@ class VideoStacker(private val context: Context) {
             }
         }
 
-        val composition = Composition.Builder(sequences)
+        val compositionBuilder = Composition.Builder(sequences)
             .setVideoCompositorSettings(BandCompositorSettings(outputWidth, outputHeight, bands))
-            .build()
+
+        // 静止画を継ぎ足すときは全体をSDRに落とす。
+        // スマホのHDR動画にSDRのJPEGを混ぜると、映像処理側が
+        // 「HDR出力なのにSDRが来た」で落ちる(SDR→HDRの変換は無い)。
+        // 落とすのは継ぎ足しがあるときだけで、素材そのままの書き出しは
+        // これまでどおりHDRを保つ。
+        if (freezeFiles.isNotEmpty()) {
+            compositionBuilder.setHdrMode(
+                Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL
+            )
+        }
+
+        val composition = compositionBuilder.build()
 
         var transformer: Transformer? = null
 
