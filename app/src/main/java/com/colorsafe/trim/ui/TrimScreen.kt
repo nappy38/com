@@ -130,21 +130,10 @@ fun TrimScreen(
 
 @Composable
 private fun AppHeader() {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "ColorSafe Trim",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.SemiBold
-        )
-        Text(
-            text = "色味を変えずに動画をトリミング",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
+    ScreenTitle(
+        title = "トリム",
+        subtitle = "色を変えずに、切りとる"
+    )
 }
 
 @Composable

@@ -70,18 +70,10 @@ fun StackScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            Column(modifier = Modifier.padding(top = 20.dp)) {
-                Text(
-                    text = "3分割",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "動画3本を縦に積んで1本にします。テロップはCapCutで。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            ScreenTitle(
+                title = "3分割",
+                subtitle = "3本の動画を、縦に積む"
+            )
 
             // ---------- 素材 ----------
             SectionLabel("そざい")
