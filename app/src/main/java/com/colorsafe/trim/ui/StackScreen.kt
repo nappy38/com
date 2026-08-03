@@ -6,6 +6,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -44,6 +46,7 @@ import kotlin.math.roundToInt
 
 private val PANEL_LABELS = listOf("上のパネル", "中央のパネル", "下のパネル")
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun StackScreen(
     state: StackUiState,
@@ -188,8 +191,18 @@ fun StackScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.width(56.dp)
                         )
-                        listOf(0.5f to "0.5x", 1f to "1x", 1.5f to "1.5x", 2f to "2x")
-                            .forEach { (value, label) ->
+                        FlowRow(
+                            modifier = Modifier.weight(1f),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            listOf(
+                                0.5f to "0.5x",
+                                0.7f to "0.7x",
+                                1f to "1x",
+                                1.2f to "1.2x",
+                                1.5f to "1.5x"
+                            ).forEach { (value, label) ->
                                 FilterChip(
                                     selected = state.panels[index].adjust.speed == value,
                                     onClick = { onSpeedChanged(index, value) },
@@ -197,6 +210,7 @@ fun StackScreen(
                                     label = { Text(label) }
                                 )
                             }
+                        }
                     }
                 }
             }
@@ -216,10 +230,15 @@ fun StackScreen(
 
             // ---------- 長さ ----------
             SectionLabel("ながさ")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // 選択肢が横幅に収まらないので折り返す
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 listOf<Pair<Double?, String>>(
                     null to "そのまま",
                     4.0 to "4秒",
+                    5.0 to "5秒",
                     6.0 to "6秒",
                     8.0 to "8秒"
                 ).forEach { (value, label) ->

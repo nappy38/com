@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -38,6 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.colorsafe.trim.R
 import kotlin.math.roundToInt
@@ -67,7 +69,10 @@ fun TrimScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
-            AppHeader()
+            // 動画を開いたら見出しは引っ込める。ここが空くぶんプレビューが広がる
+            if (!state.hasVideo) {
+                AppHeader()
+            }
 
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 if (!state.hasVideo) {
@@ -90,14 +95,17 @@ fun TrimScreen(
                 androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(8.dp))
             }
 
-            TextButton(onClick = { showLicenses = true }) {
-                Text(
-                    text = "ライセンス情報",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            // ライセンスは最初の画面にだけ置く。編集中は場所を取らせない
+            if (!state.hasVideo) {
+                TextButton(onClick = { showLicenses = true }) {
+                    Text(
+                        text = "ライセンス情報",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
-            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(12.dp))
         }
     }
 
@@ -212,26 +220,38 @@ private fun LoadedContent(
             }
         }
 
-        androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(10.dp))
+        androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(6.dp))
 
-        if (state.isProbing) {
-            CircularProgressIndicator(modifier = Modifier.padding(8.dp))
-        } else {
-            state.colorInfo?.let { info ->
+        // 色の情報と「別の動画」は1行に収める。縦に積むとプレビューが痩せる
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            if (state.isProbing) {
+                CircularProgressIndicator(
+                    modifier = Modifier.height(18.dp).aspectRatio(1f),
+                    strokeWidth = 2.dp
+                )
+            } else {
                 Text(
-                    text = info.summaryLabel(),
+                    text = state.colorInfo?.summaryLabel().orEmpty(),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
             }
+            TextButton(onClick = onPickVideoClick, enabled = !state.isSaving) {
+                Text("別の動画", style = MaterialTheme.typography.bodySmall)
+            }
         }
-
-        androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
 
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = "開始 ${formatTime(state.startSeconds)}　終了 ${formatTime(state.endSeconds)}",
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.bodyMedium
             )
             RangeSlider(
                 value = state.startSeconds.toFloat()..state.endSeconds.toFloat(),
@@ -245,27 +265,28 @@ private fun LoadedContent(
         }
 
         Column(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = "傾き補正 %.1f°".format(state.angleDegrees),
-                style = MaterialTheme.typography.titleMedium
-            )
+            // リセットは見出しと同じ行に置く。下に足すとその分プレビューが縮む
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "傾き補正 %.1f°".format(state.angleDegrees),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                if (state.angleDegrees != 0f) {
+                    TextButton(onClick = onResetAngle, enabled = !state.isSaving) {
+                        Text("リセット", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
             Slider(
                 value = state.angleDegrees,
                 onValueChange = onAngleChanged,
                 valueRange = -45f..45f,
                 enabled = !state.isSaving
             )
-            if (state.angleDegrees != 0f) {
-                TextButton(onClick = onResetAngle, enabled = !state.isSaving) {
-                    Text("傾きをリセット")
-                }
-            }
-        }
-
-        androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(4.dp))
-
-        TextButton(onClick = onPickVideoClick, enabled = !state.isSaving) {
-            Text("別の動画を選ぶ")
         }
     }
 }
