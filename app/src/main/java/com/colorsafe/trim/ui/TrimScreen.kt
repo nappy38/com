@@ -40,7 +40,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.colorsafe.trim.R
-import com.colorsafe.trim.ui.theme.WatercolorBloom
 import kotlin.math.roundToInt
 
 @Composable
@@ -150,11 +149,8 @@ private fun AppHeader() {
 
 @Composable
 private fun EmptyState(onPickVideoClick: () -> Unit) {
-    // 何も置かれていない画面なので、ここだけは絵を大きく見せる。
-    // 固定サイズだと狭い端末ではみ出すので、空いている領域いっぱいに描く。
+    // 絵は背景(WatercolorBackground)が受け持つので、ここは文字とボタンだけ
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        WatercolorBloom(modifier = Modifier.fillMaxSize())
-
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "動画を選んでください",

@@ -1,17 +1,20 @@
 package com.colorsafe.trim.ui.theme
 
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.colorsafe.trim.R
 
 private val ColorSafeLightScheme = lightColorScheme(
     primary = AppRose,
@@ -48,11 +51,11 @@ fun ColorSafeTrimTheme(
 }
 
 /**
- * 紙に水彩がにじんだ背景。
+ * 背景。紙の色の上に、さやさん自作の水彩画を下から立ち上げる。
  *
- * 画像ファイルは持たず、その場で描く。写真を敷くと容量が増えるうえ、
- * 端末の縦横比ごとに間延びする。淡い円形のにじみを3つ重ねるだけなら
- * どの画面サイズでも破綻しない。
+ * 画面いっぱいに引き伸ばさず、幅に合わせて下端に置く。縦長のスマホでは
+ * 上側に紙の色が残り、そこに文字が乗るので読みやすさを損なわない。
+ * 引き伸ばすと絵が間延びするうえ、文字が枝と重なって読みづらくなる。
  */
 @Composable
 fun WatercolorBackground(
@@ -60,35 +63,16 @@ fun WatercolorBackground(
     content: @Composable BoxScope.() -> Unit
 ) {
     Box(modifier = modifier.background(AppPaper)) {
-        Canvas(modifier = Modifier.matchParentSize()) {
-            val w = size.width
-            val h = size.height
-
-            // 右上にバラ色
-            drawRect(
-                brush = Brush.radialGradient(
-                    colors = listOf(AppBlushWash, Color.Transparent),
-                    center = Offset(w * 0.88f, h * 0.05f),
-                    radius = w * 1.05f
-                )
-            )
-            // 左上に淡い橙。花のオレンジ側を拾う
-            drawRect(
-                brush = Brush.radialGradient(
-                    colors = listOf(AppPeachWash, Color.Transparent),
-                    center = Offset(w * 0.10f, h * 0.20f),
-                    radius = w * 0.85f
-                )
-            )
-            // 左下に葉の緑。全体がピンクだけに寄らないよう受ける
-            drawRect(
-                brush = Brush.radialGradient(
-                    colors = listOf(AppSageWash, Color.Transparent),
-                    center = Offset(w * 0.04f, h * 0.84f),
-                    radius = w * 1.0f
-                )
-            )
-        }
+        Image(
+            painter = painterResource(R.drawable.bg_watercolor),
+            contentDescription = null,
+            contentScale = ContentScale.FillWidth,
+            // 文字の下に敷くので、原画より少し引く
+            alpha = 0.8f,
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+        )
         content()
     }
 }

@@ -40,7 +40,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.colorsafe.trim.model.StackLayout
-import com.colorsafe.trim.ui.theme.WatercolorBloom
 import kotlin.math.roundToInt
 
 private val PANEL_LABELS = listOf("上のパネル", "中央のパネル", "下のパネル")
@@ -126,7 +125,6 @@ fun StackScreen(
                             .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
-                        WatercolorBloom(modifier = Modifier.fillMaxSize())
                         Text(
                             text = if (state.filledCount == 0) {
                                 "動画を選ぶと\nここに出ます"
