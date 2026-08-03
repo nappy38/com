@@ -2,6 +2,7 @@ package com.colorsafe.trim.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,7 +57,8 @@ fun StackScreen(
     onDismissError: () -> Unit,
     onDismissSuccess: () -> Unit
 ) {
-    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
+    // 背景は MainActivity の水彩に任せるので、ここは透かす
+    Scaffold(containerColor = Color.Transparent) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -103,14 +106,19 @@ fun StackScreen(
                         modifier = Modifier
                             .height(380.dp)
                             .aspectRatio(9f / 16f)
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(14.dp))
+                            .border(
+                                1.dp,
+                                MaterialTheme.colorScheme.outline,
+                                RoundedCornerShape(14.dp)
+                            )
                     )
                 } else {
                     Box(
                         modifier = Modifier
                             .height(380.dp)
                             .aspectRatio(9f / 16f)
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(14.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
@@ -268,7 +276,7 @@ private fun SectionLabel(text: String) {
         text = text,
         style = MaterialTheme.typography.labelSmall,
         fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
+        color = MaterialTheme.colorScheme.primary
     )
 }
 

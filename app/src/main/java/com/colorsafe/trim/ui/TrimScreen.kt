@@ -56,7 +56,8 @@ fun TrimScreen(
 ) {
     var showLicenses by remember { mutableStateOf(false) }
 
-    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
+    // 背景は MainActivity の水彩に任せるので、ここは透かす
+    Scaffold(containerColor = Color.Transparent) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()

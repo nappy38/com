@@ -16,10 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -27,6 +25,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -35,6 +34,7 @@ import com.colorsafe.trim.ui.StackViewModel
 import com.colorsafe.trim.ui.TrimScreen
 import com.colorsafe.trim.ui.TrimViewModel
 import com.colorsafe.trim.ui.theme.ColorSafeTrimTheme
+import com.colorsafe.trim.ui.theme.WatercolorBackground
 
 private const val MODE_TRIM = 0
 private const val MODE_STACK = 1
@@ -91,10 +91,7 @@ class MainActivity : ComponentActivity() {
                     ContextCompat.checkSelfPermission(context, readPermission) ==
                         PackageManager.PERMISSION_GRANTED
 
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
+                WatercolorBackground(modifier = Modifier.fillMaxSize()) {
                     Column(modifier = Modifier.fillMaxSize()) {
                         // 切り替えは画面下に置く。上端だと片手で親指が届かない。
                         Box(modifier = Modifier.weight(1f)) {
@@ -141,7 +138,11 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        NavigationBar {
+                        // 背景のにじみを下まで続かせたいので、バーは透明にする
+                        NavigationBar(
+                            containerColor = Color.Transparent,
+                            tonalElevation = 0.dp
+                        ) {
                             NavigationBarItem(
                                 selected = mode == MODE_TRIM,
                                 onClick = { mode = MODE_TRIM },
